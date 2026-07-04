@@ -1,0 +1,43 @@
+{
+  "_nota": "Campos vacios estan PENDIENTES de confirmar por TAIS Jewelry Bar. No llenar con datos inventados. Ver seccion Pendientes en CLAUDE.md.",
+
+  "DOMINIO": "",
+  "WHATSAPP_NUMERO": "",
+  "WHATSAPP_DISPLAY": "",
+  "EMAIL": "",
+  "TELEFONO": "",
+  "DIRECCION": "",
+  "HORARIO": "",
+
+  "INSTAGRAM_URL": "",
+  "TIKTOK_URL": "",
+  "FACEBOOK_URL": "",
+
+  "PRECIO_1": "",
+  "PRECIO_2": "",
+  "PRECIO_3": "",
+  "PRECIO_4": "",
+  "PRECIO_5": "",
+  "PRECIO_6": "",
+  "PRECIO_7": "",
+
+  "ENVIO_LIMA_PLAZO": "",
+  "ENVIO_LIMA_COSTO": "",
+  "ENVIO_PROVINCIAS_PLAZO": "",
+  "ENVIO_PROVINCIAS_COSTO": "",
+  "METODOS_PAGO": "",
+  "MATERIALES": "",
+  "PACKAGING_DESC": "",
+
+  "HISTORIA_MARCA": "",
+  "T1_TEXTO": "",
+  "T1_NOMBRE": "",
+  "T2_TEXTO": "",
+  "T2_NOMBRE": "",
+  "T3_TEXTO": "",
+  "T3_NOMBRE": "",
+
+  "FORM_ENDPOINT": "",
+  "URL_ENVIOS": "",
+  "URL_PRIVACIDAD": ""
+}
