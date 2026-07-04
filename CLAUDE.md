@@ -12,6 +12,8 @@ Sitio web e-commerce de **TAIS Jewelry Bar**, marca de joyería con significado 
 |---|---|
 | `tais-jewelry-bar.html` | Home/landing completa (HTML estático standalone, Tailwind por CDN, un solo archivo) |
 | `brand-config.tais.json` | Variables de marca. Los campos vacíos están PENDIENTES de confirmar |
+| `index.html` | Copia de `tais-jewelry-bar.html` servida como entrypoint de hosting estático. Hoy es idéntica al template (sigue con los `{{PLACEHOLDERS}}` sin llenar); debe regenerarse con `build_page.py` en cuanto haya datos confirmados |
+| `Staticfile` | Archivo vacío que le indica al build system (Railpack/Railway u otro buildpack estilo Heroku) que este repo es un sitio estático, no una app con backend |
 | `CLAUDE.md` | Este archivo |
 
 ## Brandbook TAIS (fuente: brandbook oficial en imágenes)
