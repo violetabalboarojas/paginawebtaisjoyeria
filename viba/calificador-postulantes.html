@@ -372,7 +372,8 @@ const IC={
   bajar:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/>',
   copiar:'<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
   imprimir:'<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/>',
-  pin:'<path d="M12 21s7-6 7-11.5a7 7 0 0 0-14 0C5 15 12 21 12 21z"/>'
+  pin:'<path d="M12 21s7-6 7-11.5a7 7 0 0 0-14 0C5 15 12 21 12 21z"/>',
+  mas:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>'
 };
 const icon=(n,s=18)=>`<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]||''}</svg>`;
 
@@ -669,7 +670,8 @@ function consolidar(){
     }
   }
   S.post=orden.map((k,i)=>{const p=mapa.get(k);p.orden=i;enlazar(p);return p;});
-  S.datos=S.cargas.length?S.cargas[S.cargas.length-1]:null;
+  const arch=S.cargas.filter(c=>!c.manual);
+  S.datos=arch.length?arch[arch.length-1]:(S.cargas[0]||null);
 }
 const cargaDe = p=>S.cargas.find(c=>c.id===p.cargaId)||S.datos;
 function fechaLocal(iso){const d=new Date(iso);return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);}
@@ -908,6 +910,7 @@ async function enviarLogin(ev){
 const SECCIONES=[
   {id:'inicio',t:'Inicio',ic:'inicio',sub:'Resumen de la convocatoria',g:'Seguimiento'},
   {id:'postulantes',t:'Postulantes',ic:'post',sub:'Buscar, filtrar y calificar',g:'Seguimiento'},
+  {id:'registro',t:'Registrar postulante',ic:'mas',sub:'Ingresar datos nuevos en la app',g:'Seguimiento'},
   {id:'visitas',t:'Visitas',ic:'visitas',sub:'Agenda de constatación en campo',g:'Seguimiento'},
   {id:'evolucion',t:'Evolución',ic:'grafico',sub:'El avance a lo largo del tiempo',g:'Seguimiento'},
   {id:'calidad',t:'Calidad de datos',ic:'calidad',sub:'Qué hay que corregir en el archivo',g:'Seguimiento'},
@@ -955,11 +958,11 @@ function vacio(){
     <div style="width:64px;height:64px;border-radius:18px;background:#e7effb;color:var(--azul2);display:grid;place-items:center;margin:0 auto 14px">${icon('datos',30)}</div>
     <h2 style="font-size:20px">Aún no hay postulantes cargados</h2>
     <p class="nota" style="max-width:460px;margin:6px auto 18px">${esAdmin()?'Importe el archivo Excel "SEGUIMIENTO DE AVANCE DE REGISTRO PROYECTO" o restaure un respaldo.':'Pida al administrador que importe el archivo en este equipo, o que le entregue un respaldo para restaurarlo.'}</p>
-    ${esAdmin()?`<button class="btn pri" data-sec="datos">${icon('datos',16)} Importar archivo</button>`:''}</div>`;
+    <div class="fila" style="justify-content:center">${esAdmin()?`<button class="btn pri" data-sec="datos">${icon('datos',16)} Importar archivo</button>`:''}<button class="btn" data-sec="registro">${icon('mas',16)} Registrar un postulante a mano</button></div></div>`;
 }
 function renderSeccion(){
   if(['inicio','postulantes','visitas','evolucion','calidad','reportes'].includes(seccion)&&!S.datos){$('#app').innerHTML=vacio();return;}
-  ({inicio:renderInicio,postulantes:renderTabla,visitas:renderVisitas,evolucion:renderEvolucion,calidad:renderCalidad,reportes:renderReportes,datos:renderImportar,config:renderConfig})[seccion]();
+  ({inicio:renderInicio,registro:renderRegistro,postulantes:renderTabla,visitas:renderVisitas,evolucion:renderEvolucion,calidad:renderCalidad,reportes:renderReportes,datos:renderImportar,config:renderConfig})[seccion]();
 }
 function badge(estado){return `<span class="badge"><i style="background:${EST_COLOR[estado]}"></i>${esc(estado)}</span>`;}
 function barra(e){
@@ -983,7 +986,7 @@ function renderInicio(){
     <div><h2>${saludo}, ${esc((AUTH.nombre||'').split(' ')[0])}</h2>
     <p>${esc(fmtDia(new Date()))} · ${M.N} postulantes · ${S.cargas.length} ${S.cargas.length===1?'archivo':'archivos'} · última carga el ${esc(fmtFecha(S.datos.fecha))}</p></div>
     <div class="anillo">${ring}<div><b style="font-size:15px">Avance promedio</b><p>de los 6 requisitos documentarios</p></div></div>
-    <div class="acc"><button class="btn blanco" data-sec="postulantes">${icon('post',16)} Ver postulantes</button><button class="btn" data-sec="reportes">${icon('reportes',16)} Enviar reporte</button></div>
+    <div class="acc"><button class="btn blanco" data-sec="registro">${icon('mas',16)} Registrar postulante</button><button class="btn" data-sec="postulantes">${icon('post',16)} Ver postulantes</button><button class="btn" data-sec="reportes">${icon('reportes',16)} Enviar reporte</button></div>
   </div>
   <div class="kpis">
     ${kpi(M.N,'postulantes','post',HEX.azul,'#e7effb',act('',''))}
@@ -1052,7 +1055,7 @@ function renderTabla(){
     </div>
     <div class="fila" style="justify-content:space-between;margin-bottom:10px">
       <span class="fila"><b id="conteo"></b><button class="btn sm" data-act="limpiarFiltros">Limpiar filtros</button></span>
-      <span class="fila"><button class="btn sm pri" data-act="exportAuto">${icon('grafico',14)} Excel automatizado</button><button class="btn sm" data-act="exportExcel">${icon('bajar',14)} Excel (filtrado)</button><button class="btn sm" data-act="exportCita">${icon('bajar',14)} Lista "Solicitar cita"</button><button class="btn sm" data-act="exportWa">${icon('wa',14)} Mensajes WhatsApp</button></span>
+      <span class="fila"><button class="btn sm pri" data-sec="registro">${icon('mas',14)} Nuevo postulante</button><button class="btn sm" data-act="exportAuto">${icon('grafico',14)} Excel automatizado</button><button class="btn sm" data-act="exportExcel">${icon('bajar',14)} Excel (filtrado)</button><button class="btn sm" data-act="exportCita">${icon('bajar',14)} Lista "Solicitar cita"</button><button class="btn sm" data-act="exportWa">${icon('wa',14)} Mensajes WhatsApp</button></span>
     </div>
     <div id="tablaCont" class="tablawrap"></div></div>`;
   pintarFilas();
@@ -1124,7 +1127,7 @@ function pintarFicha(){
   };
   const campo=(n,l,tipo='text',extra='')=>`<label class="campo">${l}<input name="${n}" type="${tipo}" value="${esc(v[n])}" ${extra}></label>`;
   $('#fichaCont').innerHTML=`<div class="overlay" data-act="cerrarFondo"><div class="modal" role="dialog" aria-modal="true" aria-label="Ficha del postulante">
-   <div class="mhead"><div><div class="sub2" style="color:#bcd3f5">Fila ${p.fila} de «${esc(p.etiquetaCarga||p.archivo)}» · ${esc(etiquetaGrupo(p))} · DNI ${esc(p.dni)}</div><h2 style="margin:4px 0 10px;font-size:20px">${esc(nombreCompleto(p))}</h2>${badge(e.estado)} <b style="margin-left:6px">${e.cumple}/6 · ${pct(e.pct)}</b><div class="motivo">${esc(e.motivo)}</div></div>
+   <div class="mhead"><div><div class="sub2" style="color:#bcd3f5">${esc(nombreFila(p))} · ${esc(etiquetaGrupo(p))} · DNI ${esc(p.dni)}</div><h2 style="margin:4px 0 10px;font-size:20px">${esc(nombreCompleto(p))}</h2>${badge(e.estado)} <b style="margin-left:6px">${e.cumple}/6 · ${pct(e.pct)}</b><div class="motivo">${esc(e.motivo)}</div></div>
    <button class="btn" data-act="cerrarFicha" aria-label="Cerrar">${icon('x',16)}</button></div>
    <div class="mbody">
     <div class="grid g2">
@@ -1141,7 +1144,7 @@ function pintarFicha(){
       <dt>Observaciones</dt><dd>${esc(p.obs)||'—'}</dd>
      </dl>
      <h3>Carga familiar</h3><dl class="datos"><dt>Nombre</dt><dd>${esc(p.cargaNombre)||'—'}</dd><dt>DNI</dt><dd>${esc(p.cargaDni)||'—'}${p.cargaDniCorregido?` <span class="tag">original: ${esc(p.cargaDniOrig)}</span>`:''}</dd></dl>
-     <div class="fila" style="margin-top:14px">${btnWa(p,e,false)}${maps?`<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">${icon('pin',16)} Ver en Google Maps</a>`:'<span class="nota">Sin coordenadas para el mapa</span>'}</div>
+     <div class="fila" style="margin-top:14px">${p.cargaId===MANUAL?`<button class="btn" data-act="editarRegistro" data-id="${esc(p.id)}">Editar datos</button>`:''}${btnWa(p,e,false)}${maps?`<a class="btn" href="${esc(maps)}" target="_blank" rel="noopener noreferrer">${icon('pin',16)} Ver en Google Maps</a>`:'<span class="nota">Sin coordenadas para el mapa</span>'}</div>
      ${coord.ok&&coord.nota?`<p class="nota">${esc(coord.nota)}</p>`:''}
      </div>
      <div class="card"><h2>Requisitos documentarios</h2><p class="desc">Toque un requisito para cambiarlo: PENDIENTE → CUMPLE → FALTA.</p>
@@ -1390,6 +1393,127 @@ async function descargarPngs(){
   await descargar(`graficas_reporte_${hoyISO()}.zip`,crearZip(Object.keys(c.png).map(k=>({name:`grafica_${k}.png`,data:unb64(c.png[k].split(',')[1])}))));
 }
 
+/* ---------------- Registrar postulante: datos nuevos ingresados en la app ---------------- */
+// Los registros se guardan como filas de una carga especial, con el mismo formato que el Excel,
+// así entran en el panel, la tabla, la evolución y las exportaciones sin tratamiento aparte.
+const MANUAL='manual';
+function cargaManual(crear){
+  let c=S.cargas.find(x=>x.id===MANUAL);
+  if(!c&&crear){c={id:MANUAL,manual:true,etiqueta:'Registros en la app',archivo:'Registro en la app',fecha:new Date().toISOString(),hoja:'',titulo:'',encabezados:(S.datos&&S.datos.encabezados)||ENC_DEF.slice(),filas:[],descartes:[],vacias:0,nuevos:0,cambios:0};S.cargas.push(c);}
+  return c;
+}
+const nombreFila = p=>p.cargaId===MANUAL?`Registro ${p.fila} en la app`:`Fila ${p.fila} de «${p.etiquetaCarga||p.archivo}»`;
+let REG={editar:null,ultimos:[],errores:{}};
+function renderRegistro(){
+  const ed=REG.editar?S.post.find(p=>p.id===REG.editar):null;
+  const c=ed?(cargaManual(false).filas.find(f=>f.fila===ed.fila)||{c:[]}).c:[];
+  const v=i=>esc(c[i]??'');
+  const E=REG.errores, err=k=>E[k]?`<small style="color:var(--crit);font-weight:600">${esc(E[k])}</small>`:'';
+  const montos=S.config.grupos.map(g=>[String(g.monto),`S/ ${g.monto} · ${g.etiqueta}`]);
+  const ahorroSel=ed?(montos.some(m=>Number(m[0])===num(c[17]))?String(num(c[17])):(c[17]!=null?'otro':'')):(montos[0]?montos[0][0]:'');
+  const campo=(id,l,i,extra='')=>`<label class="campo">${l}<input id="${id}" value="${v(i)}" ${extra}>${err(id)}</label>`;
+  const reqSel=i=>`<label class="campo">${esc(S.config.requisitos[i])}<select id="r_req${i}"><option value="">PENDIENTE</option><option value="X">CUMPLE</option><option value="FALTA">FALTA</option></select></label>`;
+  const hoy=S.post.filter(p=>p.cargaId===MANUAL);
+  $('#app').innerHTML=`<div class="grid g2" style="align-items:start">
+  <form class="card" id="fRegistro" autocomplete="off" style="grid-column:1/-1">
+    <div class="fila" style="justify-content:space-between"><div><h2>${ed?`Editar datos de ${esc(nombreCompleto(ed))}`:'Nuevo postulante'}</h2><p class="desc">${ed?'Los cambios quedan en el historial del postulante.':'Complete lo que tenga; solo DNI, apellido paterno y nombres son obligatorios. Al guardar aparece al instante en el panel, la tabla y las exportaciones.'}</p></div>
+    ${ed?`<button type="button" class="btn" data-act="cancelarEdicion">Cancelar edición</button>`:''}</div>
+    <h3>Titular</h3>
+    <div class="form">
+      ${campo('r_dni','DNI *',1,'inputmode="numeric" maxlength="12" required')}
+      ${campo('r_apPat','Apellido paterno *',2,'required')}
+      ${campo('r_apMat','Apellido materno',3)}
+      ${campo('r_nombres','Nombres *',4,'required')}
+      ${campo('r_cel','Celular (varios: separe con /)',15,'inputmode="tel" placeholder="987654321"')}
+    </div>
+    <h3>Predio</h3>
+    <div class="form">
+      ${campo('r_dir','Dirección',5)}
+      ${campo('r_mz','Mz',6)}${campo('r_lt','Lt',7)}${campo('r_sub','Sub lote',8)}
+      <label class="campo">Distrito<input id="r_distrito" value="${v(9)}" list="r_distritos"><datalist id="r_distritos">${DISTRITOS.map(d=>`<option value="${esc(d[1])}">`).join('')}</datalist>${err('r_distrito')}</label>
+      ${campo('r_medidas','Medidas (frente × fondo)',10,'placeholder="8 x 20"')}
+      ${campo('r_modulo','Módulo',11)}
+      ${campo('r_area','Área a construir (m²)',12,'inputmode="decimal"')}
+      ${campo('r_lat','Latitud',19,'inputmode="decimal" placeholder="-11.87"')}
+      ${campo('r_lng','Longitud',20,'inputmode="decimal" placeholder="-77.12"')}
+    </div>
+    <h3>Ahorro y carga familiar</h3>
+    <div class="form">
+      <label class="campo">Ahorro (define el grupo)<select id="r_ahorroSel">${montos.map(m=>`<option value="${esc(m[0])}" ${m[0]===ahorroSel?'selected':''}>${esc(m[1])}</option>`).join('')}<option value="otro" ${ahorroSel==='otro'?'selected':''}>Otro monto</option><option value="" ${ahorroSel===''?'selected':''}>Sin dato</option></select></label>
+      <label class="campo">Otro monto (S/)<input id="r_ahorroOtro" inputmode="decimal" value="${ahorroSel==='otro'?v(17):''}"></label>
+      ${campo('r_pre','Pre-ahorro',18)}
+      ${campo('r_cargaNom','Carga familiar (nombre)',13)}
+      ${campo('r_cargaDni','DNI de la carga familiar',14,'inputmode="numeric" maxlength="12"')}
+    </div>
+    ${ed?'':`<h3>Requisitos documentarios</h3><div class="form">${[0,1,2,3,4,5].map(reqSel).join('')}</div>`}
+    <label class="campo" style="margin-top:12px">Observaciones<textarea id="r_obs">${v(16)}</textarea></label>
+    ${E._general?`<div class="error">${esc(E._general)}</div>`:''}
+    <div class="fila" style="margin-top:14px"><button type="submit" class="btn pri">${icon('check',16)} ${ed?'Guardar cambios':'Guardar postulante'}</button>${ed?'':`<button type="reset" class="btn" data-act="limpiarRegistro">Limpiar</button>`}<span class="nota">La visita de constatación se registra después, en la ficha.</span></div>
+  </form>
+  ${REG.ultimos.length?`<div class="card"><h2>${icon('check',18)} Registrados en esta sesión <span class="pill">${REG.ultimos.length}</span></h2><div class="lista">${REG.ultimos.slice().reverse().map(id=>{const p=S.post.find(x=>x.id===id);if(!p)return '';const e=evaluar(p);return `<div class="it" data-act="ficha" data-id="${esc(p.id)}"><div class="n"><div class="nombre">${esc(nombreCompleto(p))}</div><div class="sub2">DNI ${esc(p.dni)} · ${esc(distritoDe(p))} · ${e.cumple}/6</div></div>${badge(e.estado)}</div>`;}).join('')}</div></div>`:''}
+  <div class="card"><h2>Todos los registros hechos en la app <span class="pill">${hoy.length}</span></h2><p class="desc">Se guardan junto con los archivos Excel y salen en el Excel automatizado. Toque uno para ver su ficha o editar sus datos.</p>
+    <div class="lista">${hoy.length?hoy.slice().reverse().slice(0,15).map(p=>`<div class="it" data-act="ficha" data-id="${esc(p.id)}"><div class="n"><div class="nombre">${esc(nombreCompleto(p))}</div><div class="sub2">Registro ${p.fila} · DNI ${esc(p.dni)} · ${esc(distritoDe(p))}</div></div><button type="button" class="btn sm" data-act="editarRegistro" data-id="${esc(p.id)}">Editar</button></div>`).join('')+(hoy.length>15?`<div class="vacio">y ${hoy.length-15} más en Postulantes</div>`:''):'<div class="vacio">Aún no hay registros hechos en la app.</div>'}</div></div>
+  </div>`;
+  REG.errores={};
+  if(!ed) setTimeout(()=>{const i=$('#r_dni'); if(i&&!i.value) i.focus();},30);
+}
+function guardarRegistro(){
+  const g=id=>($('#'+id)?.value??'').trim(), E={};
+  const ed=REG.editar?S.post.find(p=>p.id===REG.editar):null;
+  const d=normDni(g('r_dni'));
+  if(!d.digitos) E.r_dni='Escriba el DNI';
+  else if(d.invalido) E.r_dni='El DNI tiene más de 8 dígitos';
+  else if(/[^\d\s.-]/.test(g('r_dni'))) E.r_dni='El DNI solo lleva números';
+  if(!g('r_apPat')) E.r_apPat='Obligatorio';
+  if(!g('r_nombres')) E.r_nombres='Obligatorio';
+  const dup=d.digitos&&S.post.find(p=>p.dni===d.dni&&(!ed||p.id!==ed.id));
+  if(dup) E._general=`Ya existe un postulante con DNI ${d.dni}: ${nombreCompleto(dup)} (${nombreFila(dup)}). Ábralo desde Postulantes para actualizarlo.`;
+  const cels=parseCel(g('r_cel')); if(cels.some(c=>!c.valido)) E.r_cel='Celular inválido: 9 dígitos y empieza con 9';
+  const cd=g('r_cargaDni')?normDni(g('r_cargaDni')):null; if(cd&&(!cd.digitos||cd.invalido)) E.r_cargaDni='DNI de carga inválido';
+  for(const [k,l] of [['r_area','Área'],['r_lat','Latitud'],['r_lng','Longitud']]) if(g(k)&&num(g(k))==null) E[k]=`${l}: escriba un número`;
+  if((g('r_lat')||g('r_lng'))&&!parseCoord(g('r_lat'),g('r_lng')).ok) E.r_lat='Coordenadas fuera del Perú o incompletas';
+  const ahSel=g('r_ahorroSel'), ahorro=ahSel==='otro'?num(g('r_ahorroOtro')):ahSel?Number(ahSel):null;
+  if(ahSel==='otro'&&ahorro==null) E._general=(E._general?E._general+' ':'')+'Escriba el otro monto de ahorro.';
+  const nd=normDistrito(g('r_distrito')); if(g('r_distrito')&&nd.estado!=='ok') E.r_distrito=nd.sugerido?`¿Quiso decir ${nd.sugerido}? Se guardará como está y quedará para revisar.`:'Distrito no reconocido: quedará para revisar.';
+  const bloquea=Object.keys(E).filter(k=>k!=='r_distrito');
+  if(bloquea.length){REG.errores=E;const vals=capturarForm();renderRegistro();restaurarForm(vals);toast('Revise los campos marcados');return;}
+  const man=cargaManual(true);
+  const c=new Array(NCOL).fill(null);
+  const t=x=>g(x)||null;
+  const previo=ed?man.filas.find(f=>f.fila===ed.fila):null;
+  const fila=previo?previo.fila:(man.filas.reduce((m,f)=>Math.max(m,f.fila),0)+1);
+  c[0]=previo?previo.c[0]:fila; c[1]=d.dni; c[2]=t('r_apPat'); c[3]=t('r_apMat'); c[4]=t('r_nombres');
+  c[5]=t('r_dir'); c[6]=t('r_mz'); c[7]=t('r_lt'); c[8]=t('r_sub'); c[9]=t('r_distrito');
+  c[10]=t('r_medidas'); c[11]=t('r_modulo'); c[12]=g('r_area')?num(g('r_area')):null;
+  c[13]=t('r_cargaNom'); c[14]=cd?cd.dni:null; c[15]=cels.length?cels.map(x=>x.num).join(' / '):null; c[16]=t('r_obs');
+  c[17]=ahorro; c[18]=t('r_pre'); c[19]=g('r_lat')?num(g('r_lat')):null; c[20]=g('r_lng')?num(g('r_lng')):null;
+  if(previo){for(let i=0;i<6;i++) c[29+i]=previo.c[29+i];}
+  else for(let i=0;i<6;i++) c[29+i]=g('r_req'+i)||null;
+  if(previo){
+    const nombres=['Nº','DNI','Apellido paterno','Apellido materno','Nombres','Dirección','Mz','Lt','Sub lote','Distrito','Medidas','Módulo','Área a construir','Carga familiar','DNI carga familiar','Celular','Observaciones','Ahorro','Pre-ahorro','Latitud','Longitud'];
+    const cambios=[];for(let i=1;i<=20;i++){if(String(previo.c[i]??'')!==String(c[i]??'')) cambios.push([nombres[i],previo.c[i],c[i]]);}
+    const dniCambia=previo.c[1]!==c[1];
+    // Si cambia el DNI cambia la clave: se lleva lo registrado en la app a la clave nueva
+    const ovViejo=S.overlay[ed.key];
+    previo.c=c; consolidar();
+    const p=S.post.find(x=>x.cargaId===MANUAL&&x.fila===fila);
+    if(dniCambia&&ovViejo){S.overlay[p.key]=ovViejo;delete S.overlay[ed.key];consolidar();}
+    const p2=S.post.find(x=>x.cargaId===MANUAL&&x.fila===fila);
+    cambios.forEach(([n,a,b])=>registrar(p2,n,a??'',b??''));
+    REG.editar=null; guardar(); toast(cambios.length?`Datos actualizados (${cambios.length} cambios)`:'Sin cambios');
+    renderApp(); abrirFicha(p2.id); return;
+  }
+  man.filas.push({fila,c}); man.nuevos=(man.nuevos||0)+1;
+  consolidar();
+  const p=S.post.find(x=>x.cargaId===MANUAL&&x.fila===fila);
+  registrar(p,'Registro','',`Registrado en la app por ${AUTH.nombre}`);
+  REG.ultimos.push(p.id); reporteCache=null;
+  guardar(); toast(`${nombreCompleto(p)} registrado · ${S.post.length} postulantes en total`);
+  renderApp();
+}
+function capturarForm(){const o={};document.querySelectorAll('#fRegistro input,#fRegistro select,#fRegistro textarea').forEach(e=>{if(e.id)o[e.id]=e.value;});return o;}
+function restaurarForm(o){for(const [k,v] of Object.entries(o)){const e=$('#'+k);if(e)e.value=v;}}
+
 /* ---------------- Archivos Excel: cargas acumuladas, Excel automatizado, pruebas y respaldo ---------------- */
 let pendientes=[], ultimoResultado=null, cargaPrueba='';
 function clavesDe(post){const occ={};return post.map(p=>p.dni+'#'+(occ[p.dni]=(occ[p.dni]||0)+1));}
@@ -1428,7 +1552,7 @@ function renderImportar(){
     ${S.cargas.length?`<div class="tablawrap"><table class="t resp"><thead><tr><th>#</th><th>Carga</th><th>Fecha</th><th>Filas</th><th>Nuevos</th><th>Con cambios</th><th></th></tr></thead><tbody>${S.cargas.map((c,i)=>`<tr>
       <td data-l="#">${i+1}</td><td data-l="Carga"><div class="nombre">${esc(c.etiqueta||c.archivo)}</div><div class="sub2">${esc(c.archivo)}</div></td><td data-l="Fecha">${esc(fmtFecha(c.fecha))}</td>
       <td data-l="Filas">${procesar(c.filas).post.length}</td><td data-l="Nuevos">${c.nuevos??'—'}</td><td data-l="Con cambios">${c.cambios??'—'}</td>
-      <td data-l="">${esAdmin()?`<button class="btn sm peligro" data-act="quitarCarga" data-id="${esc(c.id)}">Quitar</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="nota">Todavía no hay archivos.</p>'}
+      <td data-l="">${esAdmin()&&!c.manual?`<button class="btn sm peligro" data-act="quitarCarga" data-id="${esc(c.id)}">Quitar</button>`:c.manual?'<span class="sub2">se edita en Registrar</span>':''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="nota">Todavía no hay archivos.</p>'}
     </div>
     <div class="card"><h2>Respaldo</h2>
     <p class="desc">Sirve para pasar los datos a otro equipo (por ejemplo, al celular del técnico) o para no perderlos. Incluye todos los archivos cargados, las visitas y la evolución. El respaldo JSON no está cifrado y contiene DNI y celulares: guárdelo en un lugar seguro.</p>
@@ -1440,7 +1564,7 @@ function renderImportar(){
     <button class="btn pri" data-act="exportAuto" ${S.post.length?'':'disabled'}>${icon('bajar',16)} Descargar Excel automatizado</button></div>
   <div class="card" id="pruebas"><h2>Pruebas de aceptación</h2>
     <p class="desc">Verifica los resultados esperados con el archivo real. Se ejecutan sobre el archivo elegido tal como vino (sin ediciones manuales ni visitas).</p>
-    ${S.cargas.length>1?`<label class="campo" style="margin-bottom:10px">Archivo a probar<select id="cargaPrueba">${S.cargas.map(c=>`<option value="${esc(c.id)}" ${c.id===(cargaPrueba||S.datos.id)?'selected':''}>${esc(c.etiqueta||c.archivo)}</option>`).join('')}</select></label>`:''}
+    ${S.cargas.filter(c=>!c.manual).length>1?`<label class="campo" style="margin-bottom:10px">Archivo a probar<select id="cargaPrueba">${S.cargas.filter(c=>!c.manual).map(c=>`<option value="${esc(c.id)}" ${c.id===(cargaPrueba||S.cargas.filter(x=>!x.manual).slice(-1)[0].id)?'selected':''}>${esc(c.etiqueta||c.archivo)}</option>`).join('')}</select></label>`:''}
     <button class="btn pri" data-act="pruebas">${icon('check',16)} Ejecutar pruebas</button>
     <div class="tests" id="testsOut">${resultadosPruebas?htmlPruebas(resultadosPruebas):''}</div></div></div></div>`;
   $('#app').innerHTML=h;
@@ -1675,7 +1799,9 @@ function ejecutarPruebas(){
   const t=(nombre,esperado,obtenido,ok)=>out.push({nombre,esperado:String(esperado),obtenido:String(obtenido),ok:ok===undefined?String(esperado)===String(obtenido):!!ok});
   if(!S.datos){return [{nombre:'Hay un archivo importado',esperado:'sí',obtenido:'no',ok:false}];}
   const cfg=S.config;
-  const carga=S.cargas.find(c=>c.id===cargaPrueba)||S.datos;
+  const archivos=S.cargas.filter(c=>!c.manual);
+  const carga=archivos.find(c=>c.id===cargaPrueba)||archivos[archivos.length-1];
+  if(!carga) return [{nombre:'Hay un archivo Excel importado',esperado:'sí',obtenido:'no',ok:false}];
   const P=procesar(carga.filas).post;
   const E=new Map(P.map(p=>[p.fila,evaluar(p,{soloArchivo:true,cfg})]));
   const gLima=cfg.grupos.find(g=>Number(g.monto)===2475), gNorte=cfg.grupos.find(g=>Number(g.monto)===3500);
@@ -1847,7 +1973,7 @@ async function conEspera(el,fn){
   try{await fn();}catch(err){toast(err.message||'Ocurrió un error');}
   finally{el.disabled=false;el.style.opacity='';}
 }
-document.addEventListener('submit',ev=>{if(ev.target.id==='fLogin'||ev.target.id==='fSetup') enviarLogin(ev); else if(ev.target.id!=='dlgF') ev.preventDefault();});
+document.addEventListener('submit',ev=>{if(ev.target.id==='fLogin'||ev.target.id==='fSetup') enviarLogin(ev); else if(ev.target.id==='fRegistro'){ev.preventDefault();if(AUTH)guardarRegistro();} else if(ev.target.id!=='dlgF') ev.preventDefault();});
 document.addEventListener('click',ev=>{
   ultimaActividad=Date.now();
   const el=ev.target.closest('[data-act]');
@@ -1875,6 +2001,9 @@ document.addEventListener('click',ev=>{
       preguntar({titulo:`¿Quitar «${c.etiqueta||c.archivo}»?`,texto:'Los postulantes que solo estaban en este archivo dejan de aparecer. Las visitas y cambios hechos en la app se conservan y vuelven si el archivo se agrega otra vez.',ok:'Quitar archivo',peligro:true})
         .then(si=>{if(!si)return;S.cargas=S.cargas.filter(x=>x!==c);consolidar();resultadosPruebas=null;reporteCache=null;guardar();toast('Archivo quitado');renderApp();});} break;
     case 'exportAuto': exportExcelAuto(); break;
+    case 'editarRegistro': REG.editar=el.dataset.id; if(fichaId){fichaId=null;$('#fichaCont').innerHTML='';document.body.style.overflow='';} irA('registro'); break;
+    case 'cancelarEdicion': REG.editar=null; renderRegistro(); break;
+    case 'limpiarRegistro': REG.errores={}; setTimeout(()=>{const i=$('#r_dni');if(i)i.focus();},10); break;
     case 'guardarCorte': crearCorte('Corte manual'); guardar(); toast('Corte guardado'); renderEvolucion(); break;
     case 'quitarCorte': preguntar({titulo:'¿Quitar este corte?',texto:'Se borra de la evolución. No afecta a los postulantes.',ok:'Quitar corte',peligro:true}).then(si=>{if(!si)return;S.cortes=S.cortes.filter(k=>k.id!==el.dataset.id);guardar();renderEvolucion();}); break;
     case 'irPruebas': irA('datos'); resultadosPruebas=ejecutarPruebas(); $('#testsOut').innerHTML=htmlPruebas(resultadosPruebas); $('#pruebas').scrollIntoView({behavior:'smooth'}); break;
