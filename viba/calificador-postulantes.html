@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline'; img-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
-<title>Calificador de postulantes · VIBA</title>
+<title>Calificador de postulantes VIBA</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
 :root{
@@ -60,7 +59,7 @@ svg{flex-shrink:0}
 .side .yo small{color:#9fbbe0}
 .side .yo button{background:rgba(255,255,255,.1);border:0;color:#fff;border-radius:8px;padding:7px;cursor:pointer}
 .main{min-width:0}
-.topbar{position:sticky;top:0;z-index:30;background:rgba(243,245,249,.88);backdrop-filter:blur(10px);padding:16px 28px;display:flex;align-items:center;gap:12px}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:rgba(243,245,249,.88);backdrop-filter:blur(10px);padding:16px 28px;display:flex;align-items:center;gap:12px}
 .topbar h1{font-size:21px;margin:0;line-height:1.2}
 .topbar p{margin:0;color:var(--suave);font-size:13px}
 .topbar .acc{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
@@ -173,6 +172,13 @@ dl.datos dd{margin:0;word-break:break-word}
 .correo-prev{background:#eef1f5;border-radius:12px;padding:18px;overflow-x:auto}
 .gridRep{display:grid;gap:18px;grid-template-columns:minmax(280px,360px) 1fr;align-items:start}
 .gridRep>.card:first-child{position:sticky;top:90px}
+.dlg{position:fixed;inset:0;background:rgba(13,36,71,.55);z-index:120;display:grid;place-items:center;padding:16px}
+.dlg .caja{background:#fff;border-radius:16px;max-width:440px;width:100%;padding:22px;box-shadow:0 30px 60px rgba(0,0,0,.3)}
+.dlg h2{margin:0 0 8px;font-size:18px}
+.dlg p{margin:0 0 12px;color:var(--suave);font-size:14px;white-space:pre-line}
+.dlg input{width:100%;margin-bottom:12px}
+.dlg .fila{justify-content:flex-end}
+.btn.rojo{background:var(--crit);border-color:var(--crit);color:#fff}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:#0d2447;color:#fff;padding:11px 18px;border-radius:12px;font-size:14px;z-index:99;opacity:0;transition:all .2s;pointer-events:none;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .toast.on{opacity:1;transform:translateX(-50%)}
 .oculto{display:none!important}
@@ -221,6 +227,7 @@ dl.datos dd{margin:0;word-break:break-word}
 <div id="raiz"></div>
 <div id="fichaCont"></div>
 <div id="zonaImpresion"></div>
+<div id="dlgCont"></div>
 <div class="toast" id="toast" role="status"></div>
 <input type="file" id="fileXlsx" accept=".xlsx,.xlsm,.xls" class="oculto">
 <input type="file" id="fileJson" accept=".json,application/json" class="oculto">
@@ -296,10 +303,53 @@ function lev(a,b){
   return d[m][n];
 }
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('on'),2800);}
-function descargar(nombre, contenido, tipo){
+// Dentro de claude.ai la página no puede descargar por su cuenta: usa la capacidad "downloads".
+const EN_VISOR = !!(window.claude && typeof window.claude.use==='function');
+let DL=null;
+if(EN_VISOR) window.claude.use('downloads').then(d=>{DL=d;}).catch(()=>{});
+async function descargar(nombre, contenido, tipo){
+  if(EN_VISOR){
+    if(!DL){toast('Este visor no permite guardar archivos. Abra la app como archivo en su equipo.');return false;}
+    try{await DL.save({filename:nombre,data:contenido instanceof Blob?contenido:new Blob([contenido],{type:tipo})});return true;}
+    catch(e){if(e&&e.code!=='declined') toast('No se pudo guardar el archivo'+(e&&e.message?': '+e.message:''));return false;}
+  }
   const url=URL.createObjectURL(contenido instanceof Blob?contenido:new Blob([contenido],{type:tipo}));
   const a=document.createElement('a');a.href=url;a.download=nombre;document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),2000);
+  return true;
+}
+const guardarLibro = (wb,nombre)=>descargar(nombre,new Blob([XLSX.write(wb,{type:'array',bookType:'xlsx'})],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+// ZIP sin compresión, para entregar el .eml y las gráficas en un solo archivo
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function crearZip(archivos){
+  const partes=[],central=[];let off=0;
+  for(const f of archivos){
+    const nm=te.encode(f.name),d=f.data,crc=crc32(d);
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(12,0x21,true);
+    h.setUint32(14,crc,true);h.setUint32(18,d.length,true);h.setUint32(22,d.length,true);h.setUint16(26,nm.length,true);
+    partes.push(new Uint8Array(h.buffer),nm,d);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(14,0x21,true);
+    c.setUint32(16,crc,true);c.setUint32(20,d.length,true);c.setUint32(24,d.length,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);
+    off+=30+nm.length+d.length;
+  }
+  const tam=central.reduce((a,b)=>a+b.length,0), e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,archivos.length,true);e.setUint16(10,archivos.length,true);e.setUint32(12,tam,true);e.setUint32(16,off,true);
+  return new Blob([...partes,...central,new Uint8Array(e.buffer)],{type:'application/zip'});
+}
+// Diálogo propio: el visor de claude.ai no muestra alert/confirm/prompt
+function preguntar({titulo,texto='',ok='Aceptar',cancelar='Cancelar',peligro=false,campo=null}){
+  return new Promise(res=>{
+    const cont=$('#dlgCont');
+    cont.innerHTML=`<div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgT"><form class="caja" id="dlgF"><h2 id="dlgT">${esc(titulo)}</h2>${texto?`<p>${esc(texto)}</p>`:''}${campo?`<input id="dlgIn" type="${campo.tipo||'text'}" placeholder="${esc(campo.placeholder||'')}" autocomplete="off">`:''}<div class="fila">${cancelar?`<button type="button" class="btn" id="dlgNo">${esc(cancelar)}</button>`:''}<button type="submit" class="btn ${peligro?'rojo':'pri'}">${esc(ok)}</button></div></form></div>`;
+    const fin=v=>{cont.innerHTML='';res(v);};
+    $('#dlgF').addEventListener('submit',e=>{e.preventDefault();e.stopPropagation();fin(campo?$('#dlgIn').value:true);});
+    const no=$('#dlgNo'); if(no) no.addEventListener('click',()=>fin(campo?null:false));
+    setTimeout(()=>{const i=$('#dlgIn')||$('#dlgF button[type=submit]'); if(i) i.focus();},20);
+  });
 }
 const IC={
   casa:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
@@ -1054,7 +1104,7 @@ function pintarFicha(){
      <div class="fila" style="margin-top:12px">
       <button class="btn pri" data-act="guardarVisita">${icon('check',16)} Guardar visita</button>
       <button class="btn" data-act="copiarPlanilla">Copiar datos de la planilla</button>
-      <button class="btn" data-act="gps">${icon('pin',16)} Usar mi ubicación</button>
+      ${EN_VISOR?'':`<button class="btn" data-act="gps">${icon('pin',16)} Usar mi ubicación</button>`}
       <button class="btn peligro" data-act="borrarVisita">Borrar visita</button>
      </div></div>
     <div class="card"><h2>Historial de cambios</h2><div class="hist">${p.historial.slice().reverse().map(h=>`<div><b>${esc(fmtFecha(h.t))}</b>${h.u?' · '+esc(h.u):''} · ${esc(h.campo)}: ${h.de?esc(h.de)+' → ':''}${esc(h.a)}</div>`).join('')}</div></div>
@@ -1196,17 +1246,16 @@ async function prepararReporte(){
 }
 function renderReportes(){
   $('#app').innerHTML=`<div class="gridRep">
-   <div class="card"><h2>Armar el correo</h2><p class="desc">El reporte se arma en este equipo. Descárguelo como borrador (.eml) con las gráficas incluidas y ábralo en Outlook, Thunderbird o Correo de Apple, o cópielo para pegarlo en Gmail.</p>
+   <div class="card"><h2>Armar el correo</h2><p class="desc">El reporte se arma en este equipo. Guárdelo como borrador .eml (con las gráficas dentro) y ábralo en Outlook, Thunderbird o Correo de Apple, o cópielo para pegarlo en Gmail.</p>
     <label class="campo">Para<input id="rPara" value="${esc(S.config.correoPara)}" placeholder="gerencia@empresa.pe, equipo@empresa.pe"></label>
     <label class="campo" style="margin-top:10px">Alcance<select id="rAlcance"><option value="todos" ${RO.alcance==='todos'?'selected':''}>Todos los postulantes</option><option value="filtro" ${RO.alcance==='filtro'?'selected':''}>Solo los filtrados en Postulantes${hayFiltros()?'':' (sin filtros activos)'}</option></select></label>
     <label class="campo" style="margin-top:10px">Mensaje inicial (opcional)<textarea id="rComentario" placeholder="Ej.: Comparto el avance de la semana. Prioridad: cartas fianza de Ventanilla.">${esc(RO.comentario)}</textarea></label>
     <p style="margin:10px 0 4px"><label class="nota"><input type="checkbox" id="rLista" ${RO.incluirLista?'checked':''}> Incluir listas de postulantes (nombre y distrito)</label></p>
     <p style="margin:4px 0 12px"><label class="nota"><input type="checkbox" id="rContacto" ${RO.incluirContacto?'checked':''}> Incluir DNI y celular en las listas</label></p>
     <div class="fila" style="flex-direction:column;align-items:stretch">
-      <button class="btn pri" data-act="repEml">${icon('bajar',16)} Descargar correo (.eml)</button>
+      <button class="btn pri" data-act="repEml">${icon('bajar',16)} Guardar borrador del correo${EN_VISOR?' (.zip con .eml)':' (.eml)'}</button>
       <button class="btn" data-act="repCopiar">${icon('copiar',16)} Copiar para Gmail / Outlook web</button>
-      <button class="btn" data-act="repImprimir">${icon('imprimir',16)} Imprimir o guardar PDF</button>
-      <button class="btn" data-act="repPng">${icon('grafico',16)} Descargar gráficas (PNG)</button>
+      <button class="btn" data-act="repPng">${icon('grafico',16)} Descargar gráficas (.zip)</button>
     </div>
     <p class="nota" style="margin-top:12px">${icon('candado',13)} Nada se envía automáticamente: usted revisa el borrador y lo envía desde su correo.</p>
    </div>
@@ -1255,8 +1304,9 @@ async function descargarEml(){
     eml+=[`--${B}`,'Content-Type: image/png','Content-Transfer-Encoding: base64',`Content-ID: <${cid}>`,`Content-Disposition: inline; filename="${k}.png"`,'',envolver76(c.png[k].split(',')[1])].join('\r\n');
   }
   eml+=`--${B}--\r\n`;
-  descargar(`reporte_postulantes_${hoyISO()}.eml`,eml,'message/rfc822');
-  toast('Correo descargado: ábralo, revíselo y pulse Enviar');
+  const nombre=`reporte_postulantes_${hoyISO()}`;
+  const ok=EN_VISOR?await descargar(nombre+'.zip',crearZip([{name:nombre+'.eml',data:te.encode(eml)}])):await descargar(nombre+'.eml',eml,'message/rfc822');
+  if(ok) toast(EN_VISOR?'Guardado: descomprima el .zip y abra el archivo .eml':'Correo descargado: ábralo, revíselo y pulse Enviar');
 }
 async function copiarReporte(){
   leerOpcionesReporte();
@@ -1271,17 +1321,10 @@ async function copiarReporte(){
     toast(ok?'Copiado. Péguelo en un correo nuevo':'No se pudo copiar: use "Descargar correo (.eml)"');
   }
 }
-async function imprimirReporte(){
-  leerOpcionesReporte();
-  const c=await prepararReporte();
-  $('#zonaImpresion').innerHTML=new DOMParser().parseFromString(c.html,'text/html').body.innerHTML;
-  document.body.classList.add('imprimir');
-  setTimeout(()=>{window.print();setTimeout(()=>{document.body.classList.remove('imprimir');$('#zonaImpresion').innerHTML='';},500);},100);
-}
 async function descargarPngs(){
   leerOpcionesReporte();
   const c=await prepararReporte();
-  for(const k of Object.keys(c.png)) descargar(`grafica_${k}_${hoyISO()}.png`,new Blob([unb64(c.png[k].split(',')[1])],{type:'image/png'}));
+  await descargar(`graficas_reporte_${hoyISO()}.zip`,crearZip(Object.keys(c.png).map(k=>({name:`grafica_${k}.png`,data:unb64(c.png[k].split(',')[1])}))));
 }
 
 /* ---------------- Importar, pruebas y respaldo ---------------- */
@@ -1506,7 +1549,7 @@ function exportExcel(){
     const a=XLSX.utils.encode_cell({r,c:NCOL}); if(ws[a]) ws[a].z='0%';
   }
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'TEST DOCUMENTARIO');
-  XLSX.writeFile(wb,`calificacion_postulantes_${hoyISO()}.xlsx`);
+  guardarLibro(wb,`calificacion_postulantes_${hoyISO()}.xlsx`);
   toast(`${filas.length} filas exportadas`);
 }
 function exportCita(){
@@ -1514,14 +1557,14 @@ function exportCita(){
   if(!L.length){toast('Ningún postulante está en SOLICITAR CITA');return;}
   const aoa=[['Nombre','DNI','Celular','Distrito'],...L.map(({p})=>[nombreCompleto(p),p.dni,p.celulares.map(c=>c.num).join(' / '),distritoDe(p)])];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,hojaDesdeFilas(aoa,[40,10,24,16]),'Solicitar cita');
-  XLSX.writeFile(wb,`solicitar_cita_${hoyISO()}.xlsx`);
+  guardarLibro(wb,`solicitar_cita_${hoyISO()}.xlsx`);
 }
 function exportWa(){
   const L=filtrados().filter(({p,e})=>linkWa(p,e));
   if(!L.length){toast('No hay postulantes con celular válido en el filtro');return;}
   const aoa=[['Fila','Nombre','DNI','Celular','Estado','Mensaje','Enlace WhatsApp'],...L.map(({p,e})=>[p.fila,nombreCompleto(p),p.dni,celularWa(p),e.estado,mensajeWa(p,e),linkWa(p,e)])];
   const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,hojaDesdeFilas(aoa,[6,36,10,12,20,60,60]),'WhatsApp');
-  XLSX.writeFile(wb,`mensajes_whatsapp_${hoyISO()}.xlsx`);
+  guardarLibro(wb,`mensajes_whatsapp_${hoyISO()}.xlsx`);
 }
 
 /* =========================================================================
@@ -1532,14 +1575,14 @@ async function conEspera(el,fn){
   try{await fn();}catch(err){toast(err.message||'Ocurrió un error');}
   finally{el.disabled=false;el.style.opacity='';}
 }
-document.addEventListener('submit',ev=>{if(ev.target.id==='fLogin'||ev.target.id==='fSetup') enviarLogin(ev); else ev.preventDefault();});
+document.addEventListener('submit',ev=>{if(ev.target.id==='fLogin'||ev.target.id==='fSetup') enviarLogin(ev); else if(ev.target.id!=='dlgF') ev.preventDefault();});
 document.addEventListener('click',ev=>{
   ultimaActividad=Date.now();
   const el=ev.target.closest('[data-act]');
   if(el&&el.dataset.act==='olvido'){
     ev.preventDefault();
-    alert('Pida al administrador que le asigne una nueva contraseña desde Configuración → Usuarios.\n\nSi usted es el único administrador, los datos cifrados no se pueden recuperar sin su contraseña. Puede borrar todo y empezar de nuevo restaurando un respaldo JSON.');
-    if(confirm('¿Borrar TODOS los datos y usuarios de este navegador para empezar de nuevo? Esta acción no se puede deshacer.')){try{localStorage.removeItem(CLAVE);}catch(e){} renderLogin();}
+    preguntar({titulo:'¿Olvidó su contraseña?',texto:'Pida al administrador que le asigne una nueva desde Configuración → Usuarios.\n\nSi usted es el único administrador, los datos cifrados no se pueden recuperar sin su contraseña. Puede borrar todo y empezar de nuevo, y luego restaurar un respaldo JSON.',ok:'Borrar todo y empezar de nuevo',cancelar:'Volver',peligro:true})
+      .then(si=>{if(si){try{localStorage.removeItem(CLAVE);}catch(e){} renderLogin();}});
     return;
   }
   if(!AUTH) return;
@@ -1559,8 +1602,8 @@ document.addEventListener('click',ev=>{
     case 'respaldo': descargar(`respaldo_calificador_viba_${hoyISO()}.json`,JSON.stringify(S),'application/json'); break;
     case 'restaurar': $('#fileJson').click(); break;
     case 'borrarTodo':
-      if(confirm('¿Borrar todos los postulantes, visitas y la configuración? Los usuarios se conservan. Esta acción no se puede deshacer.')){
-        S={v:1,config:clon(CONFIG_DEF),datos:null,post:[]}; resultadosPruebas=null; reporteCache=null; guardar(); renderApp(); toast('Datos borrados');}
+      preguntar({titulo:'¿Borrar los datos?',texto:'Se borran los postulantes, las visitas y la configuración. Los usuarios se conservan. No se puede deshacer.',ok:'Borrar datos',peligro:true}).then(si=>{if(!si)return;
+        S={v:1,config:clon(CONFIG_DEF),datos:null,post:[]}; resultadosPruebas=null; reporteCache=null; guardar(); renderApp(); toast('Datos borrados');});
       break;
     case 'filtrar': F={q:'',distrito:'',grupo:'',estado:'',falta:'',visita:'',orden:F.orden}; if(el.dataset.campo) F[el.dataset.campo]=el.dataset.valor; irA('postulantes'); break;
     case 'limpiarFiltros': F={q:'',distrito:'',grupo:'',estado:'',falta:'',visita:'',orden:'fila'}; renderTabla(); break;
@@ -1585,28 +1628,27 @@ document.addEventListener('click',ev=>{
     case 'gps': if(!navigator.geolocation){toast('Este equipo no permite obtener la ubicación');break;}
       navigator.geolocation.getCurrentPosition(pos=>{const fv=$('#formVisita');if(!fv)return;fv.querySelector('[name=lat]').value=pos.coords.latitude.toFixed(6);fv.querySelector('[name=lng]').value=pos.coords.longitude.toFixed(6);toast('Ubicación capturada. Pulse "Guardar visita".');},()=>toast('No se pudo obtener la ubicación'),{enableHighAccuracy:true,timeout:15000});
       break;
-    case 'borrarVisita': if(p&&confirm('¿Borrar los datos de la visita de este postulante?')){const antes=evaluar(p).estado;registrar(p,'Visita','registrada','borrada');p.visita=visitaVacia();const d=evaluar(p).estado;if(antes!==d)registrar(p,'Estado',antes,d);guardar();pintarFicha();} break;
+    case 'borrarVisita': if(p) preguntar({titulo:'¿Borrar la visita?',texto:'Se borran los datos de la visita de este postulante.',ok:'Borrar visita',peligro:true}).then(si=>{if(!si)return;const antes=evaluar(p).estado;registrar(p,'Visita','registrada','borrada');p.visita=visitaVacia();const d=evaluar(p).estado;if(antes!==d)registrar(p,'Estado',antes,d);guardar();pintarFicha();}); break;
     case 'aplicarDistrito': {const q=S.post.find(x=>x.id===el.dataset.id); if(q){registrar(q,'Distrito',distritoDe(q),el.dataset.valor);q.distritoManual=el.dataset.valor;guardar();renderCalidad();toast('Distrito actualizado');}} break;
     case 'repEml': conEspera(el,descargarEml); break;
     case 'repCopiar': conEspera(el,copiarReporte); break;
-    case 'repImprimir': conEspera(el,imprimirReporte); break;
     case 'repPng': conEspera(el,descargarPngs); break;
     case 'tabConfig': CT=el.dataset.v; renderConfig(); break;
     case 'agregarGrupo': if(leerConfigForm()){S.config.grupos.push({monto:0,etiqueta:'Nuevo grupo',sinCasillasWY:false});renderConfig();} break;
     case 'quitarGrupo': if(leerConfigForm()){S.config.grupos.splice(Number(el.dataset.i),1);renderConfig();} break;
     case 'guardarConfig': if(leerConfigForm()){guardar();toast('Configuración guardada');renderApp();} break;
-    case 'restablecerConfig': if(confirm('¿Restablecer las reglas por defecto (área mínima, grupos y nombres de requisitos)?')){Object.assign(S.config,{areaMin:CONFIG_DEF.areaMin,grupos:clon(CONFIG_DEF.grupos),requisitos:clon(CONFIG_DEF.requisitos)});guardar();renderConfig();} break;
+    case 'restablecerConfig': preguntar({titulo:'¿Restablecer las reglas?',texto:'Vuelven a los valores por defecto el área mínima, los grupos y los nombres de requisitos.',ok:'Restablecer'}).then(si=>{if(!si)return;Object.assign(S.config,{areaMin:CONFIG_DEF.areaMin,grupos:clon(CONFIG_DEF.grupos),requisitos:clon(CONFIG_DEF.requisitos)});guardar();renderConfig();}); break;
     case 'agregarViv': {const n=$('#nuevoViv').value.trim(); if(!n){toast('Escriba el nombre del requisito');break;} leerVivienda(); S.config.vivienda.push({id:'v'+Date.now().toString(36),nombre:n}); guardar(); renderConfig();} break;
     case 'quitarViv': leerVivienda(); S.config.vivienda.splice(Number(el.dataset.i),1); guardar(); renderConfig(); break;
     case 'guardarMensajes': leerVivienda(); Object.assign(S.config,{tplFaltan:$('#cTplF').value,tplCita:$('#cTplC').value,correoPara:$('#cPara').value.trim(),correoFirma:$('#cFirma').value.trim()}); guardar(); toast('Guardado'); break;
     case 'agregarUsuario': conEspera(el,agregarUsuario); break;
     case 'quitarUsuario': {const u=STORE.usuarios.find(x=>x.u===el.dataset.u); if(!u) break;
       if(u.rol==='admin'&&STORE.usuarios.filter(x=>x.rol==='admin').length<2){toast('Debe quedar al menos un administrador');break;}
-      if(confirm(`¿Quitar el acceso de ${u.nombre}?`)){STORE.usuarios=STORE.usuarios.filter(x=>x!==u);guardarAhora().then(()=>{toast('Usuario quitado');renderConfig();});}} break;
+      preguntar({titulo:`¿Quitar el acceso de ${u.nombre}?`,texto:'Ya no podrá ingresar en este navegador.',ok:'Quitar acceso',peligro:true}).then(si=>{if(si){STORE.usuarios=STORE.usuarios.filter(x=>x!==u);guardarAhora().then(()=>{toast('Usuario quitado');renderConfig();});}});} break;
     case 'resetUsuario': {const u=STORE.usuarios.find(x=>x.u===el.dataset.u); if(!u) break;
-      const n=prompt(`Nueva contraseña para ${u.nombre} (mínimo 8 caracteres):`); if(n==null) break;
-      if(n.length<8){toast('Mínimo 8 caracteres');break;}
-      conEspera(el,async()=>{Object.assign(u,await envolver(n,AUTH.raw));await guardarAhora();toast('Contraseña actualizada');});} break;
+      preguntar({titulo:`Nueva contraseña para ${u.nombre}`,texto:'Mínimo 8 caracteres. Entréguesela en persona.',ok:'Guardar contraseña',campo:{tipo:'password'}}).then(n=>{
+        if(n==null) return; if(n.length<8){toast('Mínimo 8 caracteres');return;}
+        conEspera(el,async()=>{Object.assign(u,await envolver(n,AUTH.raw));await guardarAhora();toast('Contraseña actualizada');});});} break;
     case 'cambiarPass': conEspera(el,cambiarPass); break;
   }
 });
@@ -1625,10 +1667,10 @@ document.addEventListener('change',ev=>{
   if(t.id==='fileXlsx'&&t.files[0]){leerArchivo(t.files[0]);t.value='';return;}
   if(t.id==='fileJson'&&t.files[0]){
     const f=t.files[0]; t.value='';
-    f.text().then(s=>{
+    f.text().then(async s=>{
       const d=JSON.parse(s);
       if(!d||d.v!==1||!Array.isArray(d.post)||!d.config) throw new Error('El archivo no es un respaldo de esta app.');
-      if(S.datos&&!confirm(`¿Reemplazar los ${S.post.length} postulantes actuales por los ${d.post.length} del respaldo?`)) return;
+      if(S.datos&&!await preguntar({titulo:'¿Restaurar el respaldo?',texto:`Se reemplazan los ${S.post.length} postulantes actuales por los ${d.post.length} del respaldo.`,ok:'Restaurar'})) return;
       S=d; S.config=Object.assign(clon(CONFIG_DEF),d.config); guardar(); resultadosPruebas=null; reporteCache=null; toast('Respaldo restaurado'); renderApp();
     }).catch(err=>toast('No se pudo restaurar: '+err.message));
   }
