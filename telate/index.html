@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Telate · Gestión</title>
+  <meta name="description" content="Telate: ventas, insumos, recetas, tareas y reportes para tortas y tés.">
+  <meta name="theme-color" content="#4A2C20">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍵</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <a class="saltar" href="#vista">Saltar al contenido</a>
+
+  <header class="barra">
+    <button class="btn-menu" type="button" aria-label="Abrir menú" aria-controls="menu" aria-expanded="false">☰</button>
+    <a class="logo" href="#dashboard"><span aria-hidden="true">🍵</span> Telate <small>tortas &amp; tés</small></a>
+    <span class="barra-fecha" id="barra-fecha"></span>
+  </header>
+
+  <aside class="lateral" id="menu">
+    <nav class="nav" aria-label="Secciones">
+      <a href="#dashboard" data-vista="dashboard"><span aria-hidden="true">📊</span> Inicio</a>
+      <a href="#ventas" data-vista="ventas"><span aria-hidden="true">🧾</span> Ventas</a>
+      <a href="#productos" data-vista="productos"><span aria-hidden="true">🍰</span> Productos</a>
+      <a href="#insumos" data-vista="insumos"><span aria-hidden="true">📦</span> Insumos <b class="nav-badge" id="badge-insumos" hidden></b></a>
+      <a href="#recetas" data-vista="recetas"><span aria-hidden="true">📋</span> Recetas</a>
+      <a href="#laboratorio" data-vista="laboratorio"><span aria-hidden="true">🧪</span> Laboratorio de tés</a>
+      <a href="#tareas" data-vista="tareas"><span aria-hidden="true">✅</span> Tareas <b class="nav-badge" id="badge-tareas" hidden></b></a>
+      <a href="#reportes" data-vista="reportes"><span aria-hidden="true">📈</span> Reportes</a>
+      <a href="#datos" data-vista="datos"><span aria-hidden="true">💾</span> Respaldo y datos</a>
+    </nav>
+    <p class="lateral-pie" id="estado-datos">Cargando…</p>
+  </aside>
+  <div class="velo" data-cerrar-menu></div>
+
+  <main id="vista" class="vista" tabindex="-1"></main>
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <script src="js/storage.js" defer></script>
+  <script src="js/reportes.js" defer></script>
+  <script src="js/excel.js" defer></script>
+  <script src="js/app.js" defer></script>
+</body>
+</html>
