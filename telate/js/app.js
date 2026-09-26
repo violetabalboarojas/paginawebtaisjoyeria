@@ -153,15 +153,6 @@ function grafico(id, config) {
   App.graficos.push(new Chart(canvas, config));
 }
 
-function descargarArchivo(nombre, contenido, tipo) {
-  const url = URL.createObjectURL(new Blob([contenido], { type: tipo }));
-  const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
 const numero = (v) => (v === '' || v === null || v === undefined ? NaN : Number(v));
 
 /* =========================================================
@@ -1282,8 +1273,9 @@ function vistaReportes(cont) {
     $('#f-desde').value = st.desde; $('#f-hasta').value = st.hasta;
     pintar();
   };
-  App.acciones.descargar = () => { if (validarRango() && Excel.descargar(actual)) toast('Excel descargado.'); };
-  App.acciones.todo = () => { if (validarRango() && Excel.descargarTodo(st.desde, st.hasta)) toast('Excel con todos los reportes descargado.'); };
+  const avisar = (r, ok) => { if (r === 'ok') toast(ok); else if (r !== 'cancelado') toast(r, 'error'); };
+  App.acciones.descargar = async () => { if (validarRango()) avisar(await Excel.descargar(actual), 'Excel descargado.'); };
+  App.acciones.todo = async () => { if (validarRango()) avisar(await Excel.descargarTodo(st.desde, st.hasta), 'Excel con todos los reportes descargado.'); };
 }
 
 /* =========================================================
@@ -1292,8 +1284,9 @@ function vistaReportes(cont) {
 function vistaDatos(cont) {
   const kb = (Storage.bytesUsados() / 1024).toFixed(1);
   const cuenta = Storage.COLECCIONES.filter((c) => c !== 'recetas').map((c) => `${c}: <b>${Storage.get(c).length}</b>`).join(' · ');
-  cont.innerHTML = cabecera('Respaldo y datos', 'Tus datos viven solo en este navegador') + `
-    ${Storage.disponible ? '' : '<div class="aviso aviso-alerta" style="margin-bottom:14px"><b>El navegador no permite guardar datos</b> (modo privado o almacenamiento bloqueado). Lo que registres se perderá al cerrar la pestaña: descarga un respaldo antes de salir.</div>'}
+  cont.innerHTML = cabecera('Respaldo y datos', Storage.remoto ? 'Tus datos se guardan en la base compartida de esta app' : 'Tus datos viven solo en este navegador') + `
+    ${Storage.remoto ? '<div class="aviso aviso-ok" style="margin-bottom:14px">✓ Guardado en línea: los cambios se ven en cualquier dispositivo donde abras este enlace con tu cuenta.</div>' : ''}
+    ${Storage.disponible || Storage.remoto ? '' : '<div class="aviso aviso-alerta" style="margin-bottom:14px"><b>El navegador no permite guardar datos</b> (modo privado o almacenamiento bloqueado). Lo que registres se perderá al cerrar la pestaña: descarga un respaldo antes de salir.</div>'}
     <div class="grid-datos">
       <div class="card"><h2>💾 Descargar respaldo</h2><p>Guarda un archivo .json con todos tus datos. Hazlo seguido y guárdalo en la nube o en tu correo.</p>
         <button class="btn btn-primario" data-accion="respaldo">Descargar respaldo (.json)</button></div>
@@ -1304,11 +1297,11 @@ function vistaDatos(cont) {
       <div class="card"><h2>🗑️ Borrar todo</h2><p>Elimina todos los datos para empezar desde cero con tu información real.</p>
         <button class="btn btn-peligro" data-accion="borrar">Borrar todos los datos</button></div>
     </div>
-    <p class="sub" style="margin-top:18px">Registros: ${cuenta} · Espacio usado: ${kb} KB (el navegador suele permitir unos 5 MB).</p>`;
+    <p class="sub" style="margin-top:18px">Registros: ${cuenta}${Storage.remoto ? '' : ` · Espacio usado: ${kb} KB (el navegador suele permitir unos 5 MB).`}</p>`;
 
-  App.acciones.respaldo = () => {
-    descargarArchivo(`Telate_respaldo_${Util.hoy()}.json`, JSON.stringify(Storage.backup(), null, 2), 'application/json');
-    toast('Respaldo descargado.');
+  App.acciones.respaldo = async () => {
+    const r = await Util.guardarArchivo(`Telate_respaldo_${Util.hoy()}.json`, JSON.stringify(Storage.backup(), null, 2), 'application/json');
+    if (r === 'ok') toast('Respaldo descargado.'); else if (r !== 'cancelado') toast(r, 'error');
   };
   App.acciones.ejemplo = async () => {
     if (!(await confirmar('Se <b>reemplazarán todos los datos actuales</b> por los datos de ejemplo. Te recomendamos descargar un respaldo antes.', { ok: 'Cargar ejemplo' }))) return;
@@ -1347,11 +1340,27 @@ function vistaDatos(cont) {
 /* =========================================================
    Arranque
    ========================================================= */
-function iniciar() {
-  Storage.onError = () => toast('No se pudo guardar: el almacenamiento del navegador está lleno o bloqueado. Descarga un respaldo.', 'error');
+async function iniciar() {
+  Storage.onError = (e) => toast(e && e.code === 'invalid_argument'
+    ? 'No se pudo guardar un cambio (sin permiso de edición o registro demasiado grande).'
+    : 'No se pudo guardar: el almacenamiento está lleno o bloqueado. Descarga un respaldo.', 'error');
+  Storage.onRemoto = () => { if (!document.querySelector('dialog[open]')) render(); };
 
-  // Primera vez: carga datos de ejemplo para explorar la app.
-  if (!Storage.pref('inicializado')) {
+  $('#vista').innerHTML = '<div class="vacio">Cargando datos…</div>';
+  const conexion = await Storage.conectar();
+  $('#estado-datos').textContent = conexion.remoto
+    ? 'Datos guardados en línea: se sincronizan entre dispositivos.'
+    : 'Los datos se guardan en este navegador. Haz respaldos seguido.';
+
+  if (conexion.remoto) {
+    // Base compartida nueva: carga el ejemplo una sola vez.
+    if (conexion.vacia) {
+      Storage.cargarEjemplo();
+      setTimeout(() => toast('Cargamos datos de ejemplo. Puedes borrarlos en «Respaldo y datos».'), 400);
+    }
+    Storage.marcarInicializado();
+  } else if (!Storage.pref('inicializado')) {
+    // Primera vez: carga datos de ejemplo para explorar la app.
     const vacia = Storage.COLECCIONES.every((c) => { const v = Storage.get(c); return Array.isArray(v) ? !v.length : !Object.keys(v).length; });
     if (vacia) {
       Storage.cargarEjemplo();

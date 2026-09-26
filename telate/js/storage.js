@@ -35,6 +35,31 @@ const Util = {
   num: (n, dec = 2) => (Number(n) || 0).toLocaleString('es-PE', { maximumFractionDigits: dec }),
   pct: (n) => ((Number(n) || 0) * 100).toLocaleString('es-PE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%',
   esc: (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+  /** Capacidad del visor de Artifacts (db, downloads…) o null fuera de él. */
+  capacidad(nombre) {
+    Util._caps = Util._caps || {};
+    if (!(nombre in Util._caps)) {
+      const use = typeof window !== 'undefined' && window.claude && window.claude.use;
+      Util._caps[nombre] = use ? Promise.resolve(window.claude.use(nombre)).catch(() => null) : Promise.resolve(null);
+    }
+    return Util._caps[nombre];
+  },
+  /** Ofrece un archivo al usuario. Devuelve 'ok', 'cancelado' o un mensaje de error. */
+  async guardarArchivo(nombre, datos, tipo) {
+    const blob = datos instanceof Blob ? datos : new Blob([datos], { type: tipo });
+    const dl = await Util.capacidad('downloads');
+    if (dl) {
+      try { await dl.save({ filename: nombre, data: blob }); return 'ok'; }
+      catch (e) { return e && e.code === 'declined' ? 'cancelado' : `No se pudo descargar (${(e && e.message) || 'error'}).`; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return 'ok';
+  },
   uid: (p = 'id') => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`,
 };
 
@@ -84,13 +109,156 @@ const Storage = (() => {
 
   function set(col, valor) {
     cache[col] = valor;
+    if (remoto) encolarRemoto(col, valor);
     try {
       localStorage.setItem(PREFIX + col, JSON.stringify(valor));
       return true;
     } catch (e) {
       console.warn('No se pudo guardar', col, e);
-      if (onError) onError(e);
+      if (onError && !remoto) onError(e);
       return false;
+    }
+  }
+
+  /* ---------- Base de datos compartida (cuando corre como Artifact) ----------
+     telate/<coleccion> → { valor }   ·   ventas_mes/<AAAA-MM-pNN> → { items }
+     La caché en memoria es la fuente para la interfaz; las escrituras se
+     encolan y se envían de a una por documento. */
+  let remoto = null;
+  let onRemoto = null;
+  const pendientes = new Map(); // ruta → cuerpo (null = borrar)
+  const enVuelo = new Set();
+  let ultimoMes = {};           // mes → JSON de sus ventas ya sincronizadas
+  let escribiendo = false;
+  const COLS_DOC = COLECCIONES.filter((c) => c !== 'ventas');
+
+  function espejoLocal(col, valor) {
+    try { localStorage.setItem(PREFIX + col, JSON.stringify(valor)); } catch (e) { /* opcional */ }
+  }
+
+  /** Agrupa ventas por mes en partes de ≤ 200 KB (límite por documento: 256 KB). */
+  function agruparVentas(ventas) {
+    const meses = {};
+    ventas.forEach((v) => { const m = String(v.fecha).slice(0, 7); (meses[m] = meses[m] || []).push(v); });
+    const partes = {};
+    Object.entries(meses).forEach(([m, lista]) => {
+      let parte = [], bytes = 0, n = 0;
+      lista.forEach((v) => {
+        const tam = JSON.stringify(v).length + 1;
+        if (parte.length && bytes + tam > 200000) { partes[`${m}-p${String(n++).padStart(2, '0')}`] = parte; parte = []; bytes = 0; }
+        parte.push(v); bytes += tam;
+      });
+      partes[`${m}-p${String(n).padStart(2, '0')}`] = parte;
+    });
+    return partes;
+  }
+
+  function encolarRemoto(col, valor) {
+    if (col === 'ventas') {
+      const meses = agruparVentas(valor);
+      new Set([...Object.keys(meses), ...Object.keys(ultimoMes)]).forEach((m) => {
+        const items = meses[m] || [];
+        const json = JSON.stringify(items);
+        if (ultimoMes[m] === json) return;
+        if (items.length) ultimoMes[m] = json; else delete ultimoMes[m];
+        pendientes.set(`ventas_mes/${m}`, items.length ? { items } : null);
+      });
+    } else {
+      pendientes.set(`telate/${col}`, { valor });
+    }
+    procesarCola();
+  }
+
+  async function procesarCola() {
+    if (escribiendo) return;
+    escribiendo = true;
+    try {
+      while (pendientes.size) {
+        const [ruta, cuerpo] = pendientes.entries().next().value;
+        pendientes.delete(ruta);
+        enVuelo.add(ruta);
+        const escribir = () => (cuerpo ? remoto.doc(ruta).set(cuerpo) : remoto.doc(ruta).delete());
+        try {
+          await escribir();
+        } catch (e) {
+          if (e && e.code === 'unavailable') {
+            await new Promise((r) => setTimeout(r, 800 + Math.random() * 800));
+            try { await escribir(); } catch (e2) { if (onError) onError(e2); }
+          } else if (onError) {
+            onError(e);
+          }
+        } finally {
+          enVuelo.delete(ruta);
+        }
+      }
+    } finally {
+      escribiendo = false;
+    }
+  }
+
+  const ocupado = (ruta) => pendientes.has(ruta) || enVuelo.has(ruta);
+
+  function escuchar() {
+    COLS_DOC.forEach((c) => {
+      const ruta = `telate/${c}`;
+      remoto.doc(ruta).onSnapshot((snap) => {
+        if (snap.metadata.hasPendingWrites || ocupado(ruta)) return;
+        const nuevo = snap.exists ? (snap.data().valor ?? DEFAULTS[c]) : DEFAULTS[c];
+        if (JSON.stringify(nuevo) === JSON.stringify(cache[c])) return;
+        cache[c] = clonar(nuevo);
+        espejoLocal(c, cache[c]);
+        if (onRemoto) onRemoto();
+      }, (e) => console.warn('Sincronización detenida', ruta, e));
+    });
+    remoto.collection('ventas_mes').onSnapshot((q) => {
+      if (q.metadata.hasPendingWrites || [...pendientes.keys(), ...enVuelo].some((r) => r.startsWith('ventas_mes/'))) return;
+      const nuevos = {};
+      q.docs.forEach((d) => { nuevos[d.id] = JSON.stringify(d.data().items || []); });
+      const claves = new Set([...Object.keys(nuevos), ...Object.keys(ultimoMes)]);
+      if ([...claves].every((k) => nuevos[k] === ultimoMes[k])) return;
+      ultimoMes = nuevos;
+      cache.ventas = Object.keys(nuevos).sort().flatMap((k) => JSON.parse(nuevos[k]));
+      espejoLocal('ventas', cache.ventas);
+      if (onRemoto) onRemoto();
+    }, (e) => console.warn('Sincronización de ventas detenida', e));
+  }
+
+  /** Conecta con la base compartida si el visor la ofrece.
+      Devuelve { remoto: bool, vacia: bool }. */
+  async function conectar() {
+    const db = await Util.capacidad('db');
+    if (!db) return { remoto: false, vacia: false };
+    try {
+      const [snaps, meses, meta] = await Promise.all([
+        Promise.all(COLS_DOC.map((c) => db.doc(`telate/${c}`).get())),
+        db.collection('ventas_mes').get(),
+        db.doc('telate/meta').get(),
+      ]);
+      const hayDatos = meta.exists || snaps.some((s) => s.exists) || !meses.empty;
+      remoto = db;
+      if (hayDatos) {
+        COLS_DOC.forEach((c, i) => { cache[c] = clonar(snaps[i].exists ? (snaps[i].data().valor ?? DEFAULTS[c]) : DEFAULTS[c]); });
+        ultimoMes = {};
+        meses.docs.forEach((d) => { ultimoMes[d.id] = JSON.stringify(d.data().items || []); });
+        cache.ventas = Object.keys(ultimoMes).sort().flatMap((k) => JSON.parse(ultimoMes[k]));
+        COLECCIONES.forEach((c) => espejoLocal(c, cache[c]));
+      } else {
+        COLECCIONES.forEach((c) => { cache[c] = clonar(DEFAULTS[c]); });
+        ultimoMes = {};
+      }
+      escuchar();
+      return { remoto: true, vacia: !hayDatos };
+    } catch (e) {
+      console.warn('Base compartida no disponible; se usa este navegador.', e);
+      remoto = null;
+      return { remoto: false, vacia: false };
+    }
+  }
+
+  function marcarInicializado() {
+    if (remoto) {
+      pendientes.set('telate/meta', { inicializado: true, fecha: new Date().toISOString() });
+      procesarCola();
     }
   }
 
@@ -146,9 +314,12 @@ const Storage = (() => {
   }
 
   return {
-    get, set, pref, backup, restore, borrarTodo, cargarEjemplo, bytesUsados, COLECCIONES,
+    get, set, pref, backup, restore, borrarTodo, cargarEjemplo, bytesUsados, COLECCIONES, conectar, marcarInicializado,
     get disponible() { return disponible; },
+    get remoto() { return !!remoto; },
+    get sincronizando() { return pendientes.size + enVuelo.size > 0; },
     set onError(fn) { onError = fn; },
+    set onRemoto(fn) { onRemoto = fn; },
   };
 })();
 

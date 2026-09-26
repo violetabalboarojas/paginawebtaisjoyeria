@@ -16,6 +16,14 @@ Hecha con HTML, CSS y JavaScript vanilla, sin frameworks ni build. Los datos se 
 - La primera vez carga **datos de ejemplo** (45 días de ventas). Bórralos en *Respaldo y datos → Borrar todo* antes de ingresar datos reales.
 - Los datos viven **solo en ese navegador y ese equipo**. Descarga un respaldo `.json` seguido.
 
+## Versión publicada (Artifact de claude.ai)
+
+- Enlace: https://claude.ai/artifact/8vzJxTJPc5SehQucuaGchK (privado: compártelo desde el menú *Share*).
+- `artifact.html` es `index.html` sin `<!doctype>`/`<head>` (el visor los agrega). Regenerarlo si cambia `index.html`.
+- Ahí los datos se guardan en la **base compartida** del Artifact (capacidad `db`): `telate/<colección>` y las ventas en `ventas_mes/<AAAA-MM-pNN>` (partes de ≤ 200 KB). Se sincronizan entre dispositivos; `localStorage` queda como copia local.
+- Las descargas de Excel y del respaldo usan la capacidad `downloads` (el visor pide confirmación).
+- Fuera del visor (abriendo `index.html`) todo funciona igual, solo con `localStorage`.
+
 ## Estructura de archivos
 
 ```

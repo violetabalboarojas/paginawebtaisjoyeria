@@ -12,12 +12,12 @@ const Excel = (() => {
   };
   const FILA_ENCABEZADO = 3; // fila 0: título, 1: período, 2: vacía, 3: encabezados
 
-  function disponible() {
-    if (typeof XLSX === 'undefined') {
-      alert('No se pudo cargar la librería de Excel (SheetJS). Revisa tu conexión a internet y recarga la página.');
-      return false;
-    }
-    return true;
+  const disponible = () => typeof XLSX !== 'undefined';
+  const SIN_LIBRERIA = 'No se pudo cargar la librería de Excel. Revisa tu conexión a internet y recarga la página.';
+
+  function guardar(wb, nombre) {
+    const datos = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    return Util.guardarArchivo(nombre, new Blob([datos], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
   }
 
   /** Fecha ISO → número de serie de Excel (evita desfases de zona horaria). */
@@ -87,25 +87,24 @@ const Excel = (() => {
     return desde || hasta ? `_${desde || 'inicio'}_a_${hasta || Util.hoy()}` : `_${Util.hoy()}`;
   }
 
-  function descargar(rep) {
-    if (!disponible()) return false;
+  /** Devuelve 'ok', 'cancelado' o un mensaje de error. */
+  async function descargar(rep) {
+    if (!disponible()) return SIN_LIBRERIA;
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, construirHoja(rep), nombreHoja(rep.hoja, new Set()));
     const periodo = rep.sinFechas ? `_${Util.hoy()}` : sufijoPeriodo(rep.desde, rep.hasta);
-    XLSX.writeFile(wb, `Telate_${rep.id}${periodo}.xlsx`);
-    return true;
+    return guardar(wb, `Telate_${rep.id}${periodo}.xlsx`);
   }
 
-  function descargarTodo(desde, hasta) {
-    if (!disponible()) return false;
+  async function descargarTodo(desde, hasta) {
+    if (!disponible()) return SIN_LIBRERIA;
     const wb = XLSX.utils.book_new();
     const usados = new Set();
     Reportes.lista.forEach((def) => {
       const rep = Reportes.generar(def.id, desde, hasta);
       XLSX.utils.book_append_sheet(wb, construirHoja(rep), nombreHoja(rep.hoja, usados));
     });
-    XLSX.writeFile(wb, `Telate_reportes${sufijoPeriodo(desde, hasta)}.xlsx`);
-    return true;
+    return guardar(wb, `Telate_reportes${sufijoPeriodo(desde, hasta)}.xlsx`);
   }
 
   return { descargar, descargarTodo };

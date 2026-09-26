@@ -47,8 +47,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- Estructura ---------- */
 .barra {
-  position: fixed; inset: 0 0 auto 0; height: var(--barra); z-index: 30;
-  display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  position: fixed; inset: 0 0 auto 0; height: calc(var(--barra) + env(safe-area-inset-top, 0px)); z-index: 30;
+  padding-top: env(safe-area-inset-top, 0px);
+  display: flex; align-items: center; gap: 12px; padding-inline: 16px;
   background: var(--choco); color: var(--crema);
 }
 .logo { font-family: var(--f-titulo); font-size: 1.35rem; font-weight: 700; color: var(--crema); text-decoration: none; }
@@ -57,7 +58,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn-menu { display: none; background: none; border: 0; color: var(--crema); font-size: 1.5rem; padding: 4px 8px; cursor: pointer; }
 
 .lateral {
-  position: fixed; top: var(--barra); bottom: 0; left: 0; width: var(--lateral); z-index: 25;
+  position: fixed; top: calc(var(--barra) + env(safe-area-inset-top, 0px)); bottom: 0; left: 0; width: var(--lateral); z-index: 25;
   background: var(--blanco); border-right: 1px solid var(--borde);
   display: flex; flex-direction: column; overflow-y: auto;
 }
