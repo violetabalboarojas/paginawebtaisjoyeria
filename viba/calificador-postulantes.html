@@ -255,7 +255,7 @@ const EST_COLOR = {[EST.CITA]:HEX.ok, [EST.FALTAN]:HEX.warn, [EST.SIN]:HEX.neutr
 const RESULTADOS = ['Apta','No apta','Observada'];
 const VISITA_OPC = ['Apta','Observada','No apta','Registrada sin resultado','Sin visita'];
 const DISTRITOS = [['VENTANILLA','Ventanilla'],['PUENTE PIEDRA','Puente Piedra'],['HUACHO','Huacho'],['VEGUETA','Végueta'],['HUAURA','Huaura']];
-const INACTIVIDAD_MIN = 20;
+const CLAVE_SES = 'viba_calificador_sesion';
 
 const CONFIG_DEF = {
   areaMin: 35,
@@ -436,7 +436,28 @@ function guardarAhora(){
   return colaGuardado;
 }
 const guardar = ()=>{guardarAhora();};
+// Sesión abierta hasta que se pulse "Cerrar sesión": la clave de los datos queda en este navegador.
+function recordarSesion(si){
+  try{ if(si&&AUTH) localStorage.setItem(CLAVE_SES,JSON.stringify({u:AUTH.u,k:b64(AUTH.raw)})); else localStorage.removeItem(CLAVE_SES); }catch(e){}
+}
+async function reanudar(){
+  STORE=leerStore();
+  let ses=null; try{ses=JSON.parse(localStorage.getItem(CLAVE_SES)||'null');}catch(e){}
+  const usr=ses&&STORE.usuarios.find(x=>x.u===ses.u);
+  if(usr&&crypto.subtle){
+    try{
+      const raw=unb64(ses.k), key=await importarClave(raw);
+      cargarEstado(STORE.datos?JSON.parse(td.decode(await descifrar(key,STORE.datos))):null);
+      AUTH={u:usr.u,nombre:usr.nombre,rol:usr.rol,raw,key};
+      try{seccion=localStorage.getItem(CLAVE+'_sec')||'inicio';}catch(e){seccion='inicio';}
+      if(!puedeVer(seccion)) seccion='inicio';
+      corteAutomatico(); renderApp(); return;
+    }catch(e){ recordarSesion(false); }
+  }
+  renderLogin();
+}
 function bloquear(motivo){
+  recordarSesion(false);
   AUTH=null; S=null; pendientes=[]; ultimoResultado=null; fichaId=null; resultadosPruebas=null; reporteCache=null; menuAbierto=false;
   $('#fichaCont').innerHTML='';
   document.body.style.overflow='';
@@ -856,6 +877,7 @@ function renderLogin(motivo){
       <label for="sPass">Contraseña (mínimo 8 caracteres)</label><input id="sPass" type="password" required minlength="8" autocomplete="new-password">
       <label for="sPass2">Repita la contraseña</label><input id="sPass2" type="password" required minlength="8" autocomplete="new-password">
       <div id="loginMsg"></div>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:14px"><input type="checkbox" id="recordar" checked style="width:auto"> Mantener la sesión abierta en este equipo</label>
       <button class="btn pri" type="submit">${icon('candado',16)} Crear cuenta e ingresar</button>
       <p class="pie">Si olvida la contraseña de administrador no hay forma de recuperar los datos: exporte respaldos con frecuencia.</p>
     </form>`:`<form class="login-card" id="fLogin">
@@ -865,6 +887,7 @@ function renderLogin(motivo){
       <label for="lUsuario">Usuario</label><input id="lUsuario" required autocomplete="username" autocapitalize="none">
       <label for="lPass">Contraseña</label><input id="lPass" type="password" required autocomplete="current-password">
       <div id="loginMsg"></div>
+      <label style="display:flex;gap:8px;align-items:center;font-weight:400;margin-top:14px"><input type="checkbox" id="recordar" checked style="width:auto"> Mantener la sesión abierta en este equipo</label>
       <button class="btn pri" type="submit">Ingresar</button>
       <p class="pie"><a href="#" data-act="olvido">¿Olvidó su contraseña?</a></p>
     </form>`}
@@ -897,6 +920,7 @@ async function enviarLogin(ev){
       intentos={n:0,hasta:0};
     }
     ultimaActividad=Date.now();
+    recordarSesion($('#recordar')?.checked);
     try{seccion=localStorage.getItem(CLAVE+'_sec')||'inicio';}catch(e){seccion='inicio';}
     if(!puedeVer(seccion)) seccion='inicio';
     corteAutomatico();
@@ -1887,7 +1911,7 @@ function renderConfig(){
   if(CT==='cuenta') body=`<div class="card" style="max-width:520px"><h2>Mi cuenta</h2><p class="desc">${esc(AUTH.nombre)} · ${esc(AUTH.u)} · ${AUTH.rol==='admin'?'Administrador':'Técnico'}</p>
     <div class="form" style="grid-template-columns:1fr"><label class="campo">Contraseña actual<input id="mAct" type="password" autocomplete="current-password"></label><label class="campo">Nueva contraseña (mínimo 8)<input id="mNueva" type="password" autocomplete="new-password"></label><label class="campo">Repita la nueva contraseña<input id="mNueva2" type="password" autocomplete="new-password"></label></div>
     <div class="fila" style="margin-top:14px"><button class="btn pri" data-act="cambiarPass">Cambiar contraseña</button><button class="btn" data-act="salir">${icon('salir',16)} Cerrar sesión</button></div>
-    <p class="nota">La sesión se cierra sola tras ${INACTIVIDAD_MIN} minutos sin actividad o al recargar la página.</p></div>`;
+    <p class="nota">La sesión queda abierta en este equipo, aunque recargue o cierre la página, hasta que pulse "Cerrar sesión".</p></div>`;
   $('#app').innerHTML=`<div class="tabs2">${tabs.map(([k,l])=>`<button data-act="tabConfig" data-v="${k}" class="${CT===k?'on':''}">${esc(l)}</button>`).join('')}</div>${body}`;
 }
 function leerConfigForm(){
@@ -1980,7 +2004,7 @@ document.addEventListener('click',ev=>{
   if(el&&el.dataset.act==='olvido'){
     ev.preventDefault();
     preguntar({titulo:'¿Olvidó su contraseña?',texto:'Pida al administrador que le asigne una nueva desde Configuración → Usuarios.\n\nSi usted es el único administrador, los datos cifrados no se pueden recuperar sin su contraseña. Puede borrar todo y empezar de nuevo, y luego restaurar un respaldo JSON.',ok:'Borrar todo y empezar de nuevo',cancelar:'Volver',peligro:true})
-      .then(si=>{if(si){try{localStorage.removeItem(CLAVE);}catch(e){} renderLogin();}});
+      .then(si=>{if(si){try{localStorage.removeItem(CLAVE);localStorage.removeItem(CLAVE_SES);}catch(e){} renderLogin();}});
     return;
   }
   if(!AUTH) return;
@@ -2089,9 +2113,8 @@ document.addEventListener('change',ev=>{
 });
 document.addEventListener('keydown',ev=>{ultimaActividad=Date.now(); if(ev.key==='Escape'&&fichaId) cerrarFicha();});
 document.addEventListener('touchstart',()=>{ultimaActividad=Date.now();},{passive:true});
-setInterval(()=>{if(AUTH&&Date.now()-ultimaActividad>INACTIVIDAD_MIN*60000) bloquear(`La sesión se cerró por ${INACTIVIDAD_MIN} minutos de inactividad.`);},30000);
 
-renderLogin();
+reanudar();
 </script>
 </body>
 </html>
