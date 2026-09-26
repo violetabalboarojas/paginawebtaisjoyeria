@@ -229,7 +229,7 @@ dl.datos dd{margin:0;word-break:break-word}
 <div id="zonaImpresion"></div>
 <div id="dlgCont"></div>
 <div class="toast" id="toast" role="status"></div>
-<input type="file" id="fileXlsx" accept=".xlsx,.xlsm,.xls" class="oculto">
+<input type="file" id="fileXlsx" accept=".xlsx,.xlsm,.xls" multiple class="oculto">
 <input type="file" id="fileJson" accept=".json,application/json" class="oculto">
 
 <script>
@@ -412,8 +412,8 @@ async function crearAdmin(nombre,usuario,pass){
   STORE={v:2,usuarios:[{u:usuario,nombre,rol:'admin',creado:new Date().toISOString(),...w}],datos:null};
   AUTH={u:usuario,nombre,rol:'admin',raw,key:await importarClave(raw)};
   // migra los datos de la versión anterior (sin cifrar), si existen
-  S={v:1,config:clon(CONFIG_DEF),datos:null,post:[]};
-  try{const v1=JSON.parse(localStorage.getItem(CLAVE_V1)||'null'); if(v1&&v1.v===1){S=v1;S.config=Object.assign(clon(CONFIG_DEF),v1.config||{});}}catch(e){}
+  let v1=null; try{v1=JSON.parse(localStorage.getItem(CLAVE_V1)||'null');}catch(e){}
+  cargarEstado(v1&&v1.v===1?v1:null);
   await guardarAhora();
   try{localStorage.removeItem(CLAVE_V1);}catch(e){}
 }
@@ -422,13 +422,12 @@ async function ingresar(usuario,pass){
   if(!usr) throw new Error('cred');
   let raw; try{raw=await desenvolver(usr,pass);}catch(e){throw new Error('cred');}
   const key=await importarClave(raw);
-  const S2=STORE.datos?JSON.parse(td.decode(await descifrar(key,STORE.datos))):{v:1,config:{},datos:null,post:[]};
-  S=S2; S.config=Object.assign(clon(CONFIG_DEF),S2.config||{});
+  cargarEstado(STORE.datos?JSON.parse(td.decode(await descifrar(key,STORE.datos))):null);
   AUTH={u:usr.u,nombre:usr.nombre,rol:usr.rol,raw,key};
 }
 function guardarAhora(){
   if(!AUTH) return Promise.resolve();
-  const snap=JSON.stringify(S), key=AUTH.key;
+  const snap=serializar(), key=AUTH.key;
   colaGuardado=colaGuardado.then(async()=>{
     STORE.datos=await cifrar(key,te.encode(snap));
     escribirStore();
@@ -437,7 +436,7 @@ function guardarAhora(){
 }
 const guardar = ()=>{guardarAhora();};
 function bloquear(motivo){
-  AUTH=null; S=null; pendiente=null; fichaId=null; resultadosPruebas=null; reporteCache=null; menuAbierto=false;
+  AUTH=null; S=null; pendientes=[]; ultimoResultado=null; fichaId=null; resultadosPruebas=null; reporteCache=null; menuAbierto=false;
   $('#fichaCont').innerHTML='';
   document.body.style.overflow='';
   renderLogin(motivo);
@@ -446,7 +445,6 @@ const esAdmin = ()=>!!AUTH&&AUTH.rol==='admin';
 
 /* ---------------- estado de la app ---------------- */
 let S = null;
-let pendiente = null;
 let seccion = 'inicio';
 let F = {q:'',distrito:'',grupo:'',estado:'',falta:'',visita:'',orden:'fila'};
 let FV = {vista:'pendientes',distrito:''};
@@ -632,6 +630,67 @@ function evaluar(p,opts={}){
   return {reqs,cumple,pct:cumple/6,faltan,faltanIdx,estado,motivo,resultado:v.resultado||(hayVisita(v)?'Registrada sin resultado':'Sin visita')};
 }
 const todos = ()=>S.post.map(p=>({p,e:evaluar(p)}));
+
+/* =========================================================================
+   Datos acumulados en el tiempo: varias cargas de Excel + cambios hechos en la app
+   S = {v:2, config, cargas:[...], overlay:{clave:{reqManual,visita,distritoManual,historial}}, cortes:[...]}
+   S.post y S.datos se derivan de las cargas (no se guardan).
+   ========================================================================= */
+const nuevoId = p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const estadoVacio = ()=>({v:2,config:clon(CONFIG_DEF),cargas:[],overlay:{},cortes:[],post:[],datos:null});
+function migrar(d){
+  if(d&&d.v===2&&Array.isArray(d.cargas)){const n=Object.assign(estadoVacio(),d);n.config=Object.assign(clon(CONFIG_DEF),d.config||{});n.overlay=n.overlay||{};n.cortes=n.cortes||[];return n;}
+  const n=estadoVacio();
+  if(!d) return n;
+  n.config=Object.assign(clon(CONFIG_DEF),d.config||{});
+  if(d.datos&&Array.isArray(d.datos.filas)){
+    n.cargas.push({id:nuevoId('c'),etiqueta:'Carga inicial',...d.datos,nuevos:(d.post||[]).length,cambios:0});
+    const occ={};
+    for(const p of d.post||[]){const k=p.dni+'#'+(occ[p.dni]=(occ[p.dni]||0)+1);n.overlay[k]={reqManual:p.reqManual||[null,null,null,null,null,null],visita:p.visita||visitaVacia(),distritoManual:p.distritoManual||null,historial:p.historial||[]};}
+  }
+  return n;
+}
+function cargarEstado(d){S=migrar(d);consolidar();}
+function serializar(){const {post,datos,...resto}=S;return JSON.stringify(resto);}
+function enlazar(p){
+  const ov=S.overlay[p.key]||(S.overlay[p.key]={reqManual:[null,null,null,null,null,null],visita:visitaVacia(),distritoManual:null,historial:[]});
+  for(const f of ['reqManual','visita','distritoManual','historial']) Object.defineProperty(p,f,{get:()=>ov[f],set:v=>{ov[f]=v;},enumerable:true,configurable:true});
+}
+// Une todas las cargas: la carga más reciente manda para los datos del archivo; lo registrado en la app se conserva.
+function consolidar(){
+  const mapa=new Map(), orden=[];
+  for(const c of S.cargas){
+    const occ={};
+    for(const p of procesar(c.filas).post){
+      const k=p.dni+'#'+(occ[p.dni]=(occ[p.dni]||0)+1);
+      p.key=k; p.id=k; p.cargaId=c.id; p.archivo=c.archivo; p.etiquetaCarga=c.etiqueta;
+      if(!mapa.has(k)) orden.push(k);
+      mapa.set(k,p);
+    }
+  }
+  S.post=orden.map((k,i)=>{const p=mapa.get(k);p.orden=i;enlazar(p);return p;});
+  S.datos=S.cargas.length?S.cargas[S.cargas.length-1]:null;
+}
+const cargaDe = p=>S.cargas.find(c=>c.id===p.cargaId)||S.datos;
+function fechaLocal(iso){const d=new Date(iso);return new Date(d-d.getTimezoneOffset()*6e4).toISOString().slice(0,10);}
+
+/* ---------------- cortes: fotos del avance para ver la evolución ---------------- */
+function foto(){
+  const L=todos(), N=L.length, porEst=Object.fromEntries(EST_ORDEN.map(s=>[s,0])), mapa={};
+  L.forEach(({p,e})=>{porEst[e.estado]++;mapa[p.key]=[e.cumple,EST_ORDEN.indexOf(e.estado)];});
+  return {N,porEst,prom:N?L.reduce((a,x)=>a+x.e.pct,0)/N:0,reqCumple:[0,1,2,3,4,5].map(i=>L.filter(x=>x.e.reqs[i]==='CUMPLE').length),mapa};
+}
+function crearCorte(motivo){S.cortes.push({id:nuevoId('k'),fecha:new Date().toISOString(),motivo,u:AUTH?AUTH.nombre:'',...foto()});}
+// Una vez al día, al ingresar, se guarda un corte si algo cambió desde el último.
+function corteAutomatico(){
+  if(!S.post.length) return;
+  const ult=S.cortes[S.cortes.length-1];
+  if(ult&&fechaLocal(ult.fecha)===hoyISO()) return;
+  const f=foto();
+  if(ult&&JSON.stringify(ult.mapa)===JSON.stringify(f.mapa)) return;
+  S.cortes.push({id:nuevoId('k'),fecha:new Date().toISOString(),motivo:'Corte automático del día',u:AUTH?AUTH.nombre:'',...f});
+  guardar();
+}
 
 /* ---------------- WhatsApp ---------------- */
 function celularWa(p){return (p.celulares.find(c=>c.valido)||{}).num||'';}
@@ -838,6 +897,7 @@ async function enviarLogin(ev){
     ultimaActividad=Date.now();
     try{seccion=localStorage.getItem(CLAVE+'_sec')||'inicio';}catch(e){seccion='inicio';}
     if(!puedeVer(seccion)) seccion='inicio';
+    corteAutomatico();
     renderApp();
   }catch(err){mostrar(err.message);btn.disabled=false;}
 }
@@ -849,9 +909,10 @@ const SECCIONES=[
   {id:'inicio',t:'Inicio',ic:'inicio',sub:'Resumen de la convocatoria',g:'Seguimiento'},
   {id:'postulantes',t:'Postulantes',ic:'post',sub:'Buscar, filtrar y calificar',g:'Seguimiento'},
   {id:'visitas',t:'Visitas',ic:'visitas',sub:'Agenda de constatación en campo',g:'Seguimiento'},
+  {id:'evolucion',t:'Evolución',ic:'grafico',sub:'El avance a lo largo del tiempo',g:'Seguimiento'},
   {id:'calidad',t:'Calidad de datos',ic:'calidad',sub:'Qué hay que corregir en el archivo',g:'Seguimiento'},
   {id:'reportes',t:'Reportes',ic:'reportes',sub:'Correo de avance con gráficas',g:'Comunicación'},
-  {id:'datos',t:'Importar y respaldo',ic:'datos',sub:'Archivo Excel, pruebas y respaldos',g:'Administración',admin:true},
+  {id:'datos',t:'Archivos Excel',ic:'datos',sub:'Cargas en el tiempo, Excel automatizado y respaldo',g:'Administración',admin:true},
   {id:'config',t:'Configuración',ic:'config',sub:'Reglas, usuarios y mensajes',g:'Administración'}
 ];
 const puedeVer = id=>{const s=SECCIONES.find(x=>x.id===id); return !!s&&(!s.admin||esAdmin());};
@@ -876,7 +937,7 @@ function renderApp(){
     <div class="main">
       <div class="topbar">
         <button class="btn menuBtn" data-act="menu" aria-label="Menú">${icon('menu')}</button>
-        <div><h1>${esc(S0.t)}</h1><p>${esc(S0.sub)}${S.datos?' · '+esc(S.datos.archivo):''}</p></div>
+        <div><h1>${esc(S0.t)}</h1><p>${esc(S0.sub)}${S.datos?' · '+(S.cargas.length>1?S.cargas.length+' archivos, último: ':'')+esc(S.datos.etiqueta||S.datos.archivo):''}</p></div>
         <div class="acc">${esAdmin()?`<button class="btn" data-act="irPruebas">${icon('check',16)} Ejecutar pruebas</button>`:''}${S.datos?`<button class="btn pri" data-sec="reportes">${icon('reportes',16)} Enviar reporte</button>`:''}</div>
       </div>
       <div class="content" id="app"></div>
@@ -897,8 +958,8 @@ function vacio(){
     ${esAdmin()?`<button class="btn pri" data-sec="datos">${icon('datos',16)} Importar archivo</button>`:''}</div>`;
 }
 function renderSeccion(){
-  if(['inicio','postulantes','visitas','calidad','reportes'].includes(seccion)&&!S.datos){$('#app').innerHTML=vacio();return;}
-  ({inicio:renderInicio,postulantes:renderTabla,visitas:renderVisitas,calidad:renderCalidad,reportes:renderReportes,datos:renderImportar,config:renderConfig})[seccion]();
+  if(['inicio','postulantes','visitas','evolucion','calidad','reportes'].includes(seccion)&&!S.datos){$('#app').innerHTML=vacio();return;}
+  ({inicio:renderInicio,postulantes:renderTabla,visitas:renderVisitas,evolucion:renderEvolucion,calidad:renderCalidad,reportes:renderReportes,datos:renderImportar,config:renderConfig})[seccion]();
 }
 function badge(estado){return `<span class="badge"><i style="background:${EST_COLOR[estado]}"></i>${esc(estado)}</span>`;}
 function barra(e){
@@ -920,7 +981,7 @@ function renderInicio(){
   $('#app').innerHTML=`
   <div class="hero">
     <div><h2>${saludo}, ${esc((AUTH.nombre||'').split(' ')[0])}</h2>
-    <p>${esc(fmtDia(new Date()))} · ${M.N} postulantes · archivo importado el ${esc(fmtFecha(S.datos.fecha))}</p></div>
+    <p>${esc(fmtDia(new Date()))} · ${M.N} postulantes · ${S.cargas.length} ${S.cargas.length===1?'archivo':'archivos'} · última carga el ${esc(fmtFecha(S.datos.fecha))}</p></div>
     <div class="anillo">${ring}<div><b style="font-size:15px">Avance promedio</b><p>de los 6 requisitos documentarios</p></div></div>
     <div class="acc"><button class="btn blanco" data-sec="postulantes">${icon('post',16)} Ver postulantes</button><button class="btn" data-sec="reportes">${icon('reportes',16)} Enviar reporte</button></div>
   </div>
@@ -969,9 +1030,9 @@ function filtrados(){
     if(F.visita&&e.resultado!==F.visita) return false;
     return true;
   });
-  if(F.orden==='desc') L.sort((a,b)=>b.e.pct-a.e.pct||a.p.fila-b.p.fila);
-  else if(F.orden==='asc') L.sort((a,b)=>a.e.pct-b.e.pct||a.p.fila-b.p.fila);
-  else L.sort((a,b)=>a.p.fila-b.p.fila);
+  if(F.orden==='desc') L.sort((a,b)=>b.e.pct-a.e.pct||a.p.orden-b.p.orden);
+  else if(F.orden==='asc') L.sort((a,b)=>a.e.pct-b.e.pct||a.p.orden-b.p.orden);
+  else L.sort((a,b)=>a.p.orden-b.p.orden);
   return L;
 }
 const hayFiltros = ()=>!!(F.q||F.distrito||F.grupo||F.estado||F.falta!==''||F.visita);
@@ -991,7 +1052,7 @@ function renderTabla(){
     </div>
     <div class="fila" style="justify-content:space-between;margin-bottom:10px">
       <span class="fila"><b id="conteo"></b><button class="btn sm" data-act="limpiarFiltros">Limpiar filtros</button></span>
-      <span class="fila"><button class="btn sm" data-act="exportExcel">${icon('bajar',14)} Excel (filtrado)</button><button class="btn sm" data-act="exportCita">${icon('bajar',14)} Lista "Solicitar cita"</button><button class="btn sm" data-act="exportWa">${icon('wa',14)} Mensajes WhatsApp</button></span>
+      <span class="fila"><button class="btn sm pri" data-act="exportAuto">${icon('grafico',14)} Excel automatizado</button><button class="btn sm" data-act="exportExcel">${icon('bajar',14)} Excel (filtrado)</button><button class="btn sm" data-act="exportCita">${icon('bajar',14)} Lista "Solicitar cita"</button><button class="btn sm" data-act="exportWa">${icon('wa',14)} Mensajes WhatsApp</button></span>
     </div>
     <div id="tablaCont" class="tablawrap"></div></div>`;
   pintarFilas();
@@ -1024,7 +1085,7 @@ function renderVisitas(){
     todas:{t:'Todos',d:'Todos los postulantes, sin importar la visita.',f:()=>true}
   };
   const V=vistas[FV.vista];
-  const arr=L.filter(V.f).filter(x=>!FV.distrito||distritoDe(x.p)===FV.distrito).sort((a,b)=>b.e.cumple-a.e.cumple||a.p.fila-b.p.fila);
+  const arr=L.filter(V.f).filter(x=>!FV.distrito||distritoDe(x.p)===FV.distrito).sort((a,b)=>b.e.cumple-a.e.cumple||a.p.orden-b.p.orden);
   const distritos=[...new Set(S.post.map(distritoDe).filter(Boolean))].sort();
   $('#app').innerHTML=`<div class="kpis">
     ${kpi(L.filter(vistas.pendientes.f).length,'por visitar','visitas',HEX.azul,'#e7effb')}
@@ -1063,7 +1124,7 @@ function pintarFicha(){
   };
   const campo=(n,l,tipo='text',extra='')=>`<label class="campo">${l}<input name="${n}" type="${tipo}" value="${esc(v[n])}" ${extra}></label>`;
   $('#fichaCont').innerHTML=`<div class="overlay" data-act="cerrarFondo"><div class="modal" role="dialog" aria-modal="true" aria-label="Ficha del postulante">
-   <div class="mhead"><div><div class="sub2" style="color:#bcd3f5">Fila ${p.fila} · ${esc(etiquetaGrupo(p))} · DNI ${esc(p.dni)}</div><h2 style="margin:4px 0 10px;font-size:20px">${esc(nombreCompleto(p))}</h2>${badge(e.estado)} <b style="margin-left:6px">${e.cumple}/6 · ${pct(e.pct)}</b><div class="motivo">${esc(e.motivo)}</div></div>
+   <div class="mhead"><div><div class="sub2" style="color:#bcd3f5">Fila ${p.fila} de «${esc(p.etiquetaCarga||p.archivo)}» · ${esc(etiquetaGrupo(p))} · DNI ${esc(p.dni)}</div><h2 style="margin:4px 0 10px;font-size:20px">${esc(nombreCompleto(p))}</h2>${badge(e.estado)} <b style="margin-left:6px">${e.cumple}/6 · ${pct(e.pct)}</b><div class="motivo">${esc(e.motivo)}</div></div>
    <button class="btn" data-act="cerrarFicha" aria-label="Cerrar">${icon('x',16)}</button></div>
    <div class="mbody">
     <div class="grid g2">
@@ -1153,7 +1214,7 @@ function renderCalidad(){
   const marcasRaras=P.filter(p=>p.marcas.includes('?'));
   const areaBaja=P.filter(p=>p.areaPlanilla!=null&&p.areaPlanilla<Number(S.config.areaMin));
   const sec=(t,n,body,nota='')=>`<div class="card"><h2>${t} <span class="tag ${n?'w':''}">${n}</span></h2>${nota?`<p class="desc">${nota}</p>`:'<div style="height:8px"></div>'}${body}</div>`;
-  const desc=S.datos.descartes||[];
+  const desc=S.cargas.flatMap(c=>(c.descartes||[]).map(d=>({...d,fila:d.fila+(S.cargas.length>1?' · '+(c.etiqueta||c.archivo):'')})));
   $('#app').innerHTML=`<div class="kpis">
     ${kpi(dniC.length,'DNI corregidos','check',HEX.azul,'#e7effb')}
     ${kpi(dups.length,'DNI duplicados','post','#a52222','#fde8e8')}
@@ -1221,6 +1282,7 @@ ${RO.comentario?`<tr><td style="padding:20px 24px 0;${FF}font-size:14px;line-hei
 <tr>${kp(M.N,'postulantes','#2563b0')}${kp(pct(M.prom),'avance promedio','#2563b0')}${kp(M.porEst[EST.CITA],'solicitar cita',HEX.ok)}</tr>
 <tr>${kp(M.porEst[EST.FALTAN],'faltan documentos',HEX.warn)}${kp(M.porEst[EST.SIN],'sin iniciar',HEX.neutro)}${kp(M.porEst[EST.NO],'no califica',HEX.crit)}</tr></table></td></tr>
 ${h2(++n,'Estado de los postulantes')}${im('estados','Gráfica: postulantes por estado')}
+${img.evolucion?`${h2(++n,'Evolución del avance')}${p(`Avance promedio en cada corte guardado: de ${pct(S.cortes[0].prom)} el ${esc(fmtFecha(S.cortes[0].fecha))} a ${pct(S.cortes[S.cortes.length-1].prom)} el ${esc(fmtFecha(S.cortes[S.cortes.length-1].fecha))}.`)}${im('evolucion','Gráfica: avance promedio en el tiempo')}`:''}
 ${h2(++n,'Cuello de botella por requisito')}${p(`Los requisitos que más faltan son ${top}. En rojo, los marcados como FALTA; en gris, los que siguen pendientes.`)}${im('cuello','Gráfica: postulantes a los que les falta cada requisito')}
 ${h2(++n,'Distribución del avance documentario')}${p('Cantidad de postulantes según cuántos de los 6 requisitos tienen completos.')}${im('avance','Gráfica: distribución del avance')}
 ${h2(++n,'Avance por grupo y distrito')}
@@ -1241,6 +1303,7 @@ ${R.casi.length?`${h2(++n,'A un documento de completar')}<tr><td style="padding:
 async function prepararReporte(){
   const R=datosReporte();
   const png={}; for(const k of ['estados','cuello','avance','distritos']) png[k]=await svgAPng(R.M.charts[k]);
+  if(S.cortes.length>=2) png.evolucion=await svgAPng(chartsEvolucion().linea);
   reporteCache={R,png,html:htmlCorreo(R,png)};
   return reporteCache;
 }
@@ -1282,7 +1345,7 @@ const encabezadoUtf8 = s=>'=?UTF-8?B?'+b64(te.encode(s))+'?=';
 async function descargarEml(){
   leerOpcionesReporte();
   const c=await prepararReporte();
-  const cids={estados:'estados@viba',cuello:'cuello@viba',avance:'avance@viba',distritos:'distritos@viba'};
+  const cids=Object.fromEntries(Object.keys(c.png).map(k=>[k,k+'@viba']));
   const html=htmlCorreo(c.R,Object.fromEntries(Object.keys(cids).map(k=>[k,'cid:'+cids[k]])));
   const B='----=_VIBA_'+Math.random().toString(36).slice(2);
   const para=S.config.correoPara.split(/[;,]/).map(s=>s.trim()).filter(Boolean).join(', ');
@@ -1327,84 +1390,293 @@ async function descargarPngs(){
   await descargar(`graficas_reporte_${hoyISO()}.zip`,crearZip(Object.keys(c.png).map(k=>({name:`grafica_${k}.png`,data:unb64(c.png[k].split(',')[1])}))));
 }
 
-/* ---------------- Importar, pruebas y respaldo ---------------- */
+/* ---------------- Archivos Excel: cargas acumuladas, Excel automatizado, pruebas y respaldo ---------------- */
+let pendientes=[], ultimoResultado=null, cargaPrueba='';
+function clavesDe(post){const occ={};return post.map(p=>p.dni+'#'+(occ[p.dni]=(occ[p.dni]||0)+1));}
 function renderImportar(){
-  let h=`<div class="grid g2" style="align-items:start"><div>
-    <div class="card"><h2>Importar archivo Excel</h2><p class="desc">Hoja "TEST DOCUMENTARIO", encabezados en la fila 3 y datos desde la fila 4.</p>
-    <div class="drop" id="drop" data-act="elegirXlsx"><div class="big">${icon('datos',26)}</div><b>Arrastre aquí el archivo .xlsx</b><br><span class="nota">o haga clic para elegirlo</span></div>
+  const existentes=new Set(S.post.map(p=>p.key));
+  let h='';
+  if(ultimoResultado){
+    const R=ultimoResultado, li=(arr,f)=>arr.length?`<div class="lista">${arr.slice(0,8).map(x=>`<div class="it" data-act="ficha" data-id="${esc(x.p.id)}"><div class="n"><div class="nombre">${esc(nombreCompleto(x.p))}</div><div class="sub2">${f(x)}</div></div></div>`).join('')}${arr.length>8?`<div class="vacio">y ${arr.length-8} más</div>`:''}</div>`:'<div class="vacio">Ninguno.</div>';
+    h+=`<div class="card" style="border-color:#a9dcbf"><div class="fila" style="justify-content:space-between"><h2>${icon('check',18)} Carga agregada: ${esc(R.etiquetas)}</h2><button class="btn sm" data-act="cerrarResultado">Cerrar</button></div>
+      <p class="desc">${R.nuevos.length} postulantes nuevos · ${R.cambiaron.length} con cambios en sus requisitos · ${R.sinCambio} sin cambios · total acumulado: ${S.post.length}. Se guardó un corte en Evolución.</p>
+      <div class="grid g2"><div><h3>Avanzaron</h3>${li(R.cambiaron.filter(x=>x.d>0),x=>`+${x.d} requisito${x.d>1?'s':''} · ahora ${x.e.cumple}/6`)}</div><div><h3>Nuevos</h3>${li(R.nuevos,x=>esc(distritoDe(x.p))+' · '+x.e.cumple+'/6')}</div></div></div>`;
+  }
+  h+=`<div class="grid g2" style="align-items:start"><div>
+    <div class="card"><h2>Agregar archivos Excel</h2><p class="desc">Suba el seguimiento cada vez que se actualice, o archivos de otros proyectos. Cada archivo se suma a lo que ya hay: los postulantes nuevos se agregan, los que ya existen (mismo DNI) se actualizan con los datos del archivo más reciente, y las visitas y cambios hechos en la app se conservan.</p>
+    <div class="drop" id="drop" data-act="elegirXlsx"><div class="big">${icon('datos',26)}</div><b>Arrastre aquí uno o varios archivos .xlsx</b><br><span class="nota">o haga clic para elegirlos · hoja "TEST DOCUMENTARIO", encabezados en la fila 3</span></div>
     ${window.XLSX?'':'<div class="error">No se pudo cargar la librería SheetJS desde cdnjs. Conéctese a internet una vez para abrir la app; los datos nunca salen de este navegador.</div>'}
-    <p class="nota">${icon('candado',13)} El archivo se lee en este navegador y se guarda cifrado. No se envía a ningún servidor.</p>
+    <p class="nota">${icon('candado',13)} Los archivos se leen en este navegador y se guardan cifrados. No se envían a ningún servidor.</p>
     <div id="importMsg"></div></div>`;
-  if(pendiente){
-    const P=pendiente;
-    h+=`<div class="card"><h2>Vista previa: ${esc(P.archivo)}</h2>
+  if(pendientes.length){
+    h+=pendientes.map((P,i)=>{
+      const claves=clavesDe(P.post), nuevos=claves.filter(k=>!existentes.has(k)).length;
+      return `<div class="card"><div class="fila" style="justify-content:space-between"><h2>${esc(P.archivo)}</h2><button class="btn sm" data-act="quitarPendiente" data-i="${i}">Quitar</button></div>
       ${P.avisos.map(a=>`<div class="aviso">⚠ ${esc(a)}</div>`).join('')}
       <div class="kpis" style="margin-top:10px">
         ${kpi(P.post.length,'filas leídas','check','#087a08','#e6f6e6')}
+        ${kpi(nuevos,'postulantes nuevos','post',HEX.azul,'#e7effb')}
+        ${kpi(P.post.length-nuevos,'ya registrados: se actualizan','reloj','#8a6200','#fff4d6')}
         ${kpi(P.descartes.length,'filas descartadas','x','#a52222','#fde8e8')}
-        ${kpi(P.vacias,'filas sin datos','inicio','#5d6b7e','#eef1f5')}
       </div>
-      <p class="nota">Hoja: <b>${esc(P.hoja)}</b> · Título E1: <b>${esc(P.titulo||'(vacío)')}</b></p>
-      ${P.descartes.length?`<h3>Filas descartadas</h3><table class="t"><thead><tr><th>Fila</th><th>Motivo</th><th>Contenido</th></tr></thead><tbody>${P.descartes.map(d=>`<tr><td>${d.fila}</td><td>${esc(d.motivo)}</td><td>${esc(d.detalle)}</td></tr>`).join('')}</tbody></table>`:'<div class="okmsg">No se descartó ninguna fila con datos.</div>'}
-      <h3>Primeros postulantes</h3>
-      <table class="t resp"><thead><tr><th>Fila</th><th>DNI</th><th>Postulante</th><th>Distrito</th><th>Ahorro</th></tr></thead><tbody>
-      ${P.post.slice(0,6).map(p=>`<tr><td data-l="Fila">${p.fila}</td><td data-l="DNI">${esc(p.dni)}</td><td data-l="Postulante">${esc(nombreCompleto(p))}</td><td data-l="Distrito">${esc(distritoDe(p))}</td><td data-l="Ahorro">${p.ahorro??''}</td></tr>`).join('')}
-      </tbody></table>
-      ${S.datos?`<p><label class="nota"><input type="checkbox" id="conservar" checked> Conservar visitas, requisitos editados e historial de los postulantes con el mismo DNI</label></p><div class="aviso">Ya hay ${S.post.length} postulantes guardados. Al confirmar se reemplazan por los de este archivo.</div>`:''}
-      <div class="fila" style="margin-top:12px"><button class="btn pri" data-act="confirmarImport">${icon('check',16)} Confirmar importación</button><button class="btn" data-act="cancelarImport">Cancelar</button></div>
-    </div>`;
+      <label class="campo" style="max-width:360px">Nombre de esta carga<input id="etq_${i}" value="${esc(P.etiqueta)}" maxlength="60"></label>
+      <p class="nota">Hoja: <b>${esc(P.hoja)}</b> · Título E1: <b>${esc(P.titulo||'(vacío)')}</b> · ${P.vacias} filas sin datos ignoradas</p>
+      ${P.descartes.length?`<details><summary class="nota">Ver las ${P.descartes.length} filas descartadas y el motivo</summary><table class="t"><thead><tr><th>Fila</th><th>Motivo</th><th>Contenido</th></tr></thead><tbody>${P.descartes.map(d=>`<tr><td>${d.fila}</td><td>${esc(d.motivo)}</td><td>${esc(d.detalle)}</td></tr>`).join('')}</tbody></table></details>`:'<div class="okmsg">No se descartó ninguna fila con datos.</div>'}
+      </div>`;}).join('')+`<div class="card fila"><button class="btn pri" data-act="confirmarImport">${icon('check',16)} Agregar ${pendientes.length===1?'este archivo':pendientes.length+' archivos'}</button><button class="btn" data-act="cancelarImport">Cancelar</button><span class="nota">Se agregan en el orden en que aparecen: el último manda si un DNI se repite.</span></div>`;
   }
-  h+=`<div class="card"><h2>Respaldo</h2>
-    <p class="desc">Sirve para pasar los datos a otro equipo (por ejemplo, al celular del técnico) o para no perderlos. El respaldo JSON no está cifrado y contiene DNI y celulares: guárdelo en un lugar seguro.</p>
+  h+=`<div class="card"><h2>Archivos cargados <span class="tag b">${S.cargas.length}</span></h2><p class="desc">Historial de cargas, de la más antigua a la más reciente.</p>
+    ${S.cargas.length?`<div class="tablawrap"><table class="t resp"><thead><tr><th>#</th><th>Carga</th><th>Fecha</th><th>Filas</th><th>Nuevos</th><th>Con cambios</th><th></th></tr></thead><tbody>${S.cargas.map((c,i)=>`<tr>
+      <td data-l="#">${i+1}</td><td data-l="Carga"><div class="nombre">${esc(c.etiqueta||c.archivo)}</div><div class="sub2">${esc(c.archivo)}</div></td><td data-l="Fecha">${esc(fmtFecha(c.fecha))}</td>
+      <td data-l="Filas">${procesar(c.filas).post.length}</td><td data-l="Nuevos">${c.nuevos??'—'}</td><td data-l="Con cambios">${c.cambios??'—'}</td>
+      <td data-l="">${esAdmin()?`<button class="btn sm peligro" data-act="quitarCarga" data-id="${esc(c.id)}">Quitar</button>`:''}</td></tr>`).join('')}</tbody></table></div>`:'<p class="nota">Todavía no hay archivos.</p>'}
+    </div>
+    <div class="card"><h2>Respaldo</h2>
+    <p class="desc">Sirve para pasar los datos a otro equipo (por ejemplo, al celular del técnico) o para no perderlos. Incluye todos los archivos cargados, las visitas y la evolución. El respaldo JSON no está cifrado y contiene DNI y celulares: guárdelo en un lugar seguro.</p>
     <div class="fila"><button class="btn" data-act="respaldo">${icon('bajar',16)} Exportar respaldo (JSON)</button><button class="btn" data-act="restaurar">${icon('datos',16)} Restaurar</button><button class="btn peligro" data-act="borrarTodo">Borrar datos</button></div></div>
-  </div>
+  </div><div>
+  <div class="card"><h2>${icon('grafico',18)} Excel automatizado</h2>
+    <p class="desc">Descarga el seguimiento con todos los postulantes acumulados y columnas que se calculan solas con fórmulas: estado de cada requisito, % de avance, estado del postulante, requisitos faltantes y grupo. Si en Excel cambia una marca de AD–AI (X o FALTA) o una casilla, todo se recalcula. Trae además una hoja Resumen con conteos automáticos, una hoja Config con el área mínima y los grupos, y las hojas Visitas, Evolución y Archivos.</p>
+    <p class="nota">Tiene 200 filas libres con fórmulas al final: al escribir un DNI nuevo en la columna B, esa fila se calcula sola. El archivo se puede volver a subir aquí como una carga más.</p>
+    <button class="btn pri" data-act="exportAuto" ${S.post.length?'':'disabled'}>${icon('bajar',16)} Descargar Excel automatizado</button></div>
   <div class="card" id="pruebas"><h2>Pruebas de aceptación</h2>
-    <p class="desc">Verifica los resultados esperados con el archivo real. Se ejecutan sobre los datos tal como vienen del archivo importado (sin las ediciones manuales ni las visitas registradas en la app).</p>
+    <p class="desc">Verifica los resultados esperados con el archivo real. Se ejecutan sobre el archivo elegido tal como vino (sin ediciones manuales ni visitas).</p>
+    ${S.cargas.length>1?`<label class="campo" style="margin-bottom:10px">Archivo a probar<select id="cargaPrueba">${S.cargas.map(c=>`<option value="${esc(c.id)}" ${c.id===(cargaPrueba||S.datos.id)?'selected':''}>${esc(c.etiqueta||c.archivo)}</option>`).join('')}</select></label>`:''}
     <button class="btn pri" data-act="pruebas">${icon('check',16)} Ejecutar pruebas</button>
-    <div class="tests" id="testsOut">${resultadosPruebas?htmlPruebas(resultadosPruebas):''}</div></div></div>`;
+    <div class="tests" id="testsOut">${resultadosPruebas?htmlPruebas(resultadosPruebas):''}</div></div></div></div>`;
   $('#app').innerHTML=h;
   const drop=$('#drop');
   ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('sobre');}));
   ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('sobre');}));
-  drop.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) leerArchivo(f);});
+  drop.addEventListener('drop',e=>{leerArchivos([...e.dataTransfer.files]);});
 }
-async function leerArchivo(file){
-  try{
-    if(!window.XLSX) throw new Error('La librería SheetJS no está disponible.');
-    const buf=await file.arrayBuffer();
-    const wb=XLSX.read(buf,{type:'array'});
-    const lib=leerLibro(wb);
-    const res=procesar(lib.filas);
-    pendiente={archivo:file.name,...lib,...res};
-    renderImportar();
-  }catch(err){
-    pendiente=null;
-    const msg=$('#importMsg'); if(msg) msg.innerHTML=`<div class="error">No se pudo leer el archivo: ${esc(err.message)}</div>`;
+async function leerArchivos(files){
+  const errores=[];
+  for(const file of files){
+    try{
+      if(!window.XLSX) throw new Error('La librería SheetJS no está disponible.');
+      const wb=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      const lib=leerLibro(wb), res=procesar(lib.filas);
+      pendientes.push({archivo:file.name,etiqueta:file.name.replace(/\.[^.]+$/,''),...lib,...res});
+    }catch(err){errores.push(`${file.name}: ${err.message}`);}
   }
+  renderImportar();
+  if(errores.length){const msg=$('#importMsg'); if(msg) msg.innerHTML=errores.map(e=>`<div class="error">No se pudo leer ${esc(e)}</div>`).join('');}
 }
 function confirmarImport(){
-  const P=pendiente; if(!P) return;
-  const conservar=S.datos&&$('#conservar')?.checked;
-  if(conservar){
-    const prev=new Map(); S.post.forEach(p=>{if(!prev.has(p.dni)) prev.set(p.dni,p);});
-    for(const p of P.post){
-      const o=prev.get(p.dni); if(!o) continue;
-      p.reqManual=o.reqManual; p.visita=o.visita; p.distritoManual=o.distritoManual;
-      p.historial=o.historial.concat([{t:new Date().toISOString(),u:AUTH.nombre,campo:'Reimportación',de:'Fila '+o.fila,a:'Fila '+p.fila+' de '+P.archivo}]);
-      prev.delete(p.dni);
-    }
+  if(!pendientes.length) return;
+  pendientes.forEach((P,i)=>{const inp=$('#etq_'+i); if(inp&&inp.value.trim()) P.etiqueta=inp.value.trim();});
+  const antes=new Map(S.post.map(p=>{const e=evaluar(p);return [p.key,{req:reqArchivo(p),estado:e.estado,cumple:e.cumple}];}));
+  const ids=[];
+  for(const P of pendientes){
+    const c={id:nuevoId('c'),etiqueta:P.etiqueta,archivo:P.archivo,fecha:new Date().toISOString(),hoja:P.hoja,titulo:P.titulo,encabezados:P.encabezados,filas:P.filas,descartes:P.descartes,vacias:P.vacias,nuevos:0,cambios:0};
+    S.cargas.push(c); ids.push(c.id);
   }
-  S.datos={archivo:P.archivo,fecha:new Date().toISOString(),hoja:P.hoja,titulo:P.titulo,encabezados:P.encabezados,filas:P.filas,descartes:P.descartes,vacias:P.vacias};
-  S.post=P.post; pendiente=null; resultadosPruebas=null; reporteCache=null;
-  guardar(); toast(`${S.post.length} postulantes importados`);
-  irA('inicio');
+  consolidar();
+  const R={etiquetas:pendientes.map(P=>P.etiqueta).join(', '),nuevos:[],cambiaron:[],sinCambio:0};
+  for(const p of S.post){
+    if(!ids.includes(p.cargaId)) continue;
+    const c=cargaDe(p), a=antes.get(p.key), req=reqArchivo(p);
+    if(!a){registrar(p,'Archivo','',`Agregado desde "${c.etiqueta}" (fila ${p.fila})`);c.nuevos++;R.nuevos.push({p,e:evaluar(p)});continue;}
+    let cambios=0;
+    req.forEach((r,i)=>{if(r!==a.req[i]){cambios++;registrar(p,`${S.config.requisitos[i]} según "${c.etiqueta}"`,a.req[i],r);if(p.reqManual[i]){registrar(p,'Edición manual de '+S.config.requisitos[i],p.reqManual[i],'reemplazada por el archivo');p.reqManual[i]=null;}}});
+    const e=evaluar(p);
+    if(e.estado!==a.estado) registrar(p,'Estado',a.estado,e.estado);
+    if(cambios){c.cambios++;R.cambiaron.push({p,e,d:e.cumple-a.cumple});} else R.sinCambio++;
+  }
+  crearCorte('Carga: '+R.etiquetas);
+  pendientes=[]; resultadosPruebas=null; reporteCache=null; ultimoResultado=R;
+  guardar(); toast(`Listo: ${R.nuevos.length} nuevos, ${R.cambiaron.length} con cambios`);
+  renderApp();
 }
+
+/* ---------------- gráficas de evolución ---------------- */
+const etiquetaCorte = k=>new Date(k.fecha).toLocaleDateString('es-PE',{day:'2-digit',month:'2-digit'});
+function grLinea(pts,color,titulo){
+  const w=640,h=250,l=44,b=40,t=28,r=24,ph=h-t-b,pw=w-l-r;
+  const mx=Math.max(0.1,...pts.map(p=>p.v)), top=Math.min(1,Math.ceil(mx*10+0.5)/10);
+  const X=i=>pts.length===1?l+pw/2:l+i*pw/(pts.length-1), Y=v=>t+ph-v/top*ph;
+  let body='';
+  for(let k=0;k<=4;k++){const v=top*k/4,y=f2(Y(v));body+=`<line x1="${l}" x2="${w-r}" y1="${y}" y2="${y}" stroke="${HEX.grid}" stroke-width="1"/><text x="${l-8}" y="${y+4}" text-anchor="end" font-size="11" fill="${HEX.suave}">${pct(v)}</text>`;}
+  const paso=Math.max(1,Math.ceil(pts.length/8));
+  pts.forEach((p,i)=>{if(i%paso===0||i===pts.length-1) body+=`<text x="${f2(X(i))}" y="${h-b+20}" text-anchor="middle" font-size="12" fill="${HEX.suave}">${esc(p.label)}</text>`;});
+  if(pts.length>1){
+    const d=pts.map((p,i)=>`${i?'L':'M'}${f2(X(i))} ${f2(Y(p.v))}`).join('');
+    body+=`<path d="${d}L${f2(X(pts.length-1))} ${t+ph}L${f2(X(0))} ${t+ph}Z" fill="${color}" fill-opacity="0.10"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+  }
+  pts.forEach((p,i)=>{body+=`<circle class="mk" cx="${f2(X(i))}" cy="${f2(Y(p.v))}" r="${i===pts.length-1?5:3.5}" fill="${color}" stroke="#ffffff" stroke-width="2"><title>${esc(p.label)}: ${pct(p.v)}</title></circle>`;});
+  const u=pts[pts.length-1]; if(u) body+=`<text x="${f2(Math.min(X(pts.length-1),w-r))}" y="${f2(Y(u.v)-12)}" text-anchor="${pts.length>1?'end':'middle'}" font-size="13" font-weight="700" fill="${HEX.texto}">${pct(u.v)}</text>`;
+  body+=`<line x1="${l}" x2="${w-r}" y1="${t+ph}" y2="${t+ph}" stroke="#c9d1dc" stroke-width="1"/>`;
+  return {svg:svgWrap(w,h,body,titulo),w,h};
+}
+function grApiladas(items,leyenda,titulo){
+  const w=640,h=270,l=40,b=40,t=40,r=10,ph=h-t-b,pw=w-l-r;
+  const mx=Math.max(1,...items.map(i=>i.parts.reduce((a,p)=>a+p.n,0))), paso=Math.max(1,Math.ceil(mx/4)), top=paso*4;
+  let body='',x0=l;
+  leyenda.forEach(g=>{body+=`<rect x="${x0}" y="8" width="12" height="12" rx="3" fill="${g.color}"/><text x="${x0+18}" y="18" font-size="12" fill="${HEX.texto}">${esc(g.name)}</text>`;x0+=30+g.name.length*8;});
+  for(let k=0;k<=4;k++){const y=f2(t+ph-k/4*ph);body+=`<line x1="${l}" x2="${w-r}" y1="${y}" y2="${y}" stroke="${HEX.grid}" stroke-width="1"/><text x="${l-8}" y="${y+4}" text-anchor="end" font-size="11" fill="${HEX.suave}">${paso*k}</text>`;}
+  const slot=pw/items.length,bw=Math.min(44,slot*0.6),pasoX=Math.max(1,Math.ceil(items.length/10));
+  items.forEach((it,i)=>{
+    const x=f2(l+i*slot+(slot-bw)/2); let y=t+ph;
+    const nz=it.parts.filter(p=>p.n>0);
+    nz.forEach((p,k)=>{const hh=p.n/top*ph,gap=k<nz.length-1?2:0; y-=hh; if(hh-gap>0.5) body+=`<rect class="mk" x="${x}" y="${f2(y+gap)}" width="${f2(bw)}" height="${f2(hh-gap)}" rx="3" fill="${p.color}"><title>${esc(it.label)} · ${esc(p.name)}: ${p.n}</title></rect>`;});
+    if(i%pasoX===0||i===items.length-1) body+=`<text x="${f2(x+bw/2)}" y="${h-b+20}" text-anchor="middle" font-size="12" fill="${HEX.suave}">${esc(it.label)}</text>`;
+  });
+  body+=`<line x1="${l}" x2="${w-r}" y1="${t+ph}" y2="${t+ph}" stroke="#c9d1dc" stroke-width="1"/>`;
+  return {svg:svgWrap(w,h,body,titulo),w,h};
+}
+function chartsEvolucion(){
+  const K=S.cortes;
+  return {
+    linea:grLinea(K.map(k=>({label:etiquetaCorte(k),v:k.prom})),HEX.azul,'Avance promedio por corte'),
+    estados:grApiladas(K.map(k=>({label:etiquetaCorte(k),parts:EST_ORDEN.map(s=>({n:k.porEst[s]||0,color:EST_COLOR[s],name:s}))})),EST_ORDEN.map(s=>({name:s,color:EST_COLOR[s]})),'Postulantes por estado en cada corte')
+  };
+}
+function compararCortes(a,b){
+  const porKey=new Map(S.post.map(p=>[p.key,p]));
+  const nom=k=>{const p=porKey.get(k);return p?nombreCompleto(p):'DNI '+k.split('#')[0];};
+  const out={avanzaron:[],retrocedieron:[],cambioEstado:[],nuevos:[],salieron:[]};
+  for(const [k,v] of Object.entries(b.mapa)){
+    const o=a.mapa[k];
+    if(!o){out.nuevos.push({k,nom:nom(k),txt:`${v[0]}/6 · ${EST_ORDEN[v[1]]}`});continue;}
+    if(v[0]>o[0]) out.avanzaron.push({k,nom:nom(k),txt:`${o[0]}/6 → ${v[0]}/6`});
+    if(v[0]<o[0]) out.retrocedieron.push({k,nom:nom(k),txt:`${o[0]}/6 → ${v[0]}/6`});
+    if(v[1]!==o[1]) out.cambioEstado.push({k,nom:nom(k),txt:`${EST_ORDEN[o[1]]} → ${EST_ORDEN[v[1]]}`});
+  }
+  for(const k of Object.keys(a.mapa)) if(!b.mapa[k]) out.salieron.push({k,nom:nom(k),txt:'ya no aparece'});
+  return out;
+}
+let FE={desde:'',hasta:''};
+function renderEvolucion(){
+  const K=S.cortes;
+  if(!K.length){$('#app').innerHTML=`<div class="card"><h2>Aún no hay cortes</h2><p class="desc">Cada vez que agrega un archivo se guarda un corte, y otro automático al ingresar cada día si algo cambió. También puede guardarlo ahora.</p><button class="btn pri" data-act="guardarCorte">Guardar corte ahora</button></div>`;return;}
+  const primero=K[0], ult=K[K.length-1], ch=chartsEvolucion();
+  const desde=K.find(k=>k.id===FE.desde)||K[Math.max(0,K.length-2)], hasta=K.find(k=>k.id===FE.hasta)||ult;
+  const C=compararCortes(desde,hasta), porKey=new Map(S.post.map(p=>[p.key,p]));
+  const dPts=Math.round((ult.prom-primero.prom)*100);
+  const lista=(arr)=>arr.length?`<div class="lista">${arr.slice(0,10).map(x=>`<div class="it" ${porKey.has(x.k)?`data-act="ficha" data-id="${esc(x.k)}"`:''}><div class="n"><div class="nombre">${esc(x.nom)}</div><div class="sub2">${esc(x.txt)}</div></div></div>`).join('')}${arr.length>10?`<div class="vacio">y ${arr.length-10} más</div>`:''}</div>`:'<div class="vacio">Ninguno.</div>';
+  const opts=sel=>K.map(k=>`<option value="${esc(k.id)}" ${k.id===sel.id?'selected':''}>${esc(fmtFecha(k.fecha))} · ${esc(k.motivo)}</option>`).join('');
+  $('#app').innerHTML=`<div class="kpis">
+    ${kpi(K.length,'cortes guardados','reloj',HEX.azul,'#e7effb')}
+    ${kpi(pct(ult.prom),`avance actual (${dPts>=0?'+':''}${dPts} pts desde el primero)`,'grafico','#087a08','#e6f6e6')}
+    ${kpi(ult.porEst[EST.CITA]||0,`solicitar cita (antes ${primero.porEst[EST.CITA]||0})`,'check','#087a08','#e6f6e6')}
+    ${kpi(S.cargas.length,'archivos cargados','datos','#5d6b7e','#eef1f5')}
+  </div>
+  <div class="grid g2">
+    <div class="card"><h2>Avance promedio en el tiempo</h2><p class="desc">Requisitos cumplidos ÷ 6, promedio de todos los postulantes, en cada corte.</p><div class="chart">${ch.linea.svg}</div></div>
+    <div class="card"><h2>Estados en cada corte</h2><p class="desc">Cómo se reparten los postulantes entre los cuatro estados.</p><div class="chart">${ch.estados.svg}</div></div>
+  </div>
+  <div class="card"><div class="fila" style="justify-content:space-between"><h2>Qué cambió entre dos cortes</h2>
+    <span class="fila"><select id="feDesde" aria-label="Desde">${opts(desde)}</select><span class="nota">→</span><select id="feHasta" aria-label="Hasta">${opts(hasta)}</select></span></div>
+    <div class="acciones" style="margin-top:12px">
+      <div><h3>Avanzaron <span class="pill">${C.avanzaron.length}</span></h3>${lista(C.avanzaron)}</div>
+      <div><h3>Cambiaron de estado <span class="pill">${C.cambioEstado.length}</span></h3>${lista(C.cambioEstado)}</div>
+      <div><h3>Nuevos <span class="pill">${C.nuevos.length}</span></h3>${lista(C.nuevos)}</div>
+      <div><h3>Retrocedieron o salieron <span class="pill">${C.retrocedieron.length+C.salieron.length}</span></h3>${lista([...C.retrocedieron,...C.salieron])}</div>
+    </div></div>
+  <div class="card"><div class="fila" style="justify-content:space-between"><h2>Cortes guardados</h2><button class="btn sm pri" data-act="guardarCorte">Guardar corte ahora</button></div>
+    <div class="tablawrap" style="margin-top:10px"><table class="t resp"><thead><tr><th>Fecha</th><th>Motivo</th><th>Postulantes</th><th>Avance</th><th>Cita</th><th>Faltan doc.</th><th>Sin iniciar</th><th>No califica</th><th></th></tr></thead><tbody>
+    ${K.slice().reverse().map(k=>`<tr><td data-l="Fecha">${esc(fmtFecha(k.fecha))}</td><td data-l="Motivo">${esc(k.motivo)}${k.u?`<div class="sub2">${esc(k.u)}</div>`:''}</td><td data-l="Postulantes">${k.N}</td><td data-l="Avance"><b>${pct(k.prom)}</b></td>${EST_ORDEN.map(s=>`<td data-l="${esc(s)}">${k.porEst[s]||0}</td>`).join('')}<td data-l="">${esAdmin()?`<button class="btn sm peligro" data-act="quitarCorte" data-id="${esc(k.id)}">Quitar</button>`:''}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+
+/* ---------------- Excel automatizado (con fórmulas) ---------------- */
+function exportExcelAuto(){
+  if(!S.post.length){toast('No hay postulantes');return;}
+  const cfg=S.config, R=cfg.requisitos, G=cfg.grupos, L=todos().sort((a,b)=>a.p.orden-b.p.orden);
+  const C=i=>XLSX.utils.encode_col(i), T="'TEST DOCUMENTARIO'!";
+  const LIBRES=200, total=L.length+LIBRES, ultima=3+total;         // última fila de Excel con fórmulas
+  const enc=[...Array(NCOL)].map((_,i)=>(S.datos.encabezados||[])[i]||ENC_DEF[i]);
+  const extra=[...R.map(r=>r+' (estado)'),'Requisitos que cumple','% Avance','Resultado de la visita','Área a construir en la visita (m²)','Estado','Requisitos faltantes','Grupo'];
+  const ws={}, put=(r,c,cell)=>{ws[XLSX.utils.encode_cell({r,c})]=cell;};
+  const val=v=>v==null||v===''?null:typeof v==='number'?{t:'n',v}:typeof v==='boolean'?{t:'b',v}:{t:'s',v:String(v)};
+  put(0,4,{t:'s',v:S.datos.titulo||'DOCUMENTOS PARA INGRESO DE PROYECTOS – CONVOCATORIA 1N-26'});
+  put(1,0,{t:'s',v:`Generado por el Calificador VIBA el ${fmtFecha(new Date().toISOString())}. Las columnas ${C(35)} a ${C(47)} se calculan solas. Parámetros en la hoja Config.`});
+  [...enc,...extra].forEach((h,c)=>put(2,c,{t:'s',v:h}));
+  const crudo=new Map(S.cargas.map(c=>[c.id,new Map(c.filas.map(f=>[f.fila,f.c]))]));
+  const sinCas=G.map((g,gi)=>g.sinCasillasWY?gi:-1).filter(i=>i>=0);
+  for(let k=0;k<total;k++){
+    const r=3+k, x=r+1, dato=L[k];
+    if(dato){
+      const {p,e}=dato, c=(crudo.get(p.cargaId)||new Map()).get(p.fila)||[], g=grupoDe(p);
+      const fila=[num(p.n)??p.n,null,p.apPat,p.apMat,p.nombres,p.direccion,p.mz,p.lt,p.sublote,distritoDe(p),p.medidas,p.modulo,p.areaPlanilla,p.cargaNombre,null,
+        p.celulares.length?p.celulares.map(z=>z.num).join(' / '):p.celularOrig,p.obs,p.ahorro??p.ahorroOrig,p.preAhorro,c[19],c[20]];
+      e.reqs.forEach((s,i)=>fila.push(g&&g.sinCasillasWY&&(i===1||i===3)?null:s==='CUMPLE'));
+      fila.push(c[27],c[28]);
+      e.reqs.forEach(s=>fila.push(s==='CUMPLE'?'X':s==='FALTA'?'FALTA':null));
+      fila.forEach((v,ci)=>{const cell=val(v); if(cell) put(r,ci,cell);});
+      put(r,1,{t:'s',v:p.dni}); if(p.cargaDni) put(r,14,{t:'s',v:p.cargaDni});
+      put(r,43,{t:'s',v:e.resultado});
+      const av=num(p.visita.areaConstruir); if(av!=null) put(r,44,{t:'n',v:av});
+    }
+    const e=dato?dato.e:null, si=(f)=>`IF($B${x}="","",${f})`;
+    for(let i=0;i<6;i++){
+      let cas=`${C(21+i)}${x}=TRUE()`;
+      if((i===1||i===3)&&sinCas.length) cas=`AND(${cas},NOT(OR(${sinCas.map(gi=>`$R${x}=Config!$A$${5+gi}`).join(',')})))`;
+      const m=`UPPER(TRIM(${C(29+i)}${x}&""))`;
+      put(r,35+i,{t:'s',v:e?e.reqs[i]:'',f:si(`IF(OR(${cas},${m}="X"),"CUMPLE",IF(${m}="FALTA","FALTA","PENDIENTE"))`)});
+    }
+    const rq=`AJ${x}:AO${x}`;
+    put(r,41,e?{t:'n',v:e.cumple,f:si(`COUNTIF(${rq},"CUMPLE")`)}:{t:'s',v:'',f:si(`COUNTIF(${rq},"CUMPLE")`)});
+    put(r,42,e?{t:'n',v:e.pct,z:'0%',f:si(`AP${x}/6`)}:{t:'s',v:'',z:'0%',f:si(`AP${x}/6`)});
+    put(r,45,{t:'s',v:e?e.estado:'',f:si(`IF(OR(AR${x}="No apta",AND(ISNUMBER(AS${x}),AS${x}<Config!$B$2)),"NO CALIFICA",IF(AND(COUNTIF(${rq},"PENDIENTE")=6,OR(AR${x}="",AR${x}="Sin visita")),"SIN INICIAR",IF(AND(AP${x}=6,AR${x}="Apta"),"SOLICITAR CITA","FALTAN DOCUMENTOS")))`)});
+    const cat=R.map((_,i)=>`IF(${C(35+i)}${x}<>"CUMPLE",Config!$E$${5+i}&", ","")`).join('&');
+    put(r,46,{t:'s',v:e?e.faltan.join(', '):'',f:si(`IF((${cat})="","",LEFT(${cat},LEN(${cat})-2))`)});
+    const gr=G.reduceRight((acc,g,gi)=>`IF($R${x}=Config!$A$${5+gi},Config!$B$${5+gi},${acc})`,'"Sin grupo"');
+    put(r,47,{t:'s',v:dato?etiquetaGrupo(dato.p):'',f:si(gr)});
+  }
+  ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:ultima-1,c:47}});
+  ws['!cols']=[...enc,...extra].map((h,i)=>({wch:i===1||i===14?10:i>=NCOL?Math.min(Math.max(String(h).length,12),26):Math.min(Math.max(String(h).length,8),24)}));
+  ws['!autofilter']={ref:`A3:${C(47)}${ultima}`};
+
+  // Config
+  const cf=[['CONFIGURACIÓN DEL CALIFICADOR (las fórmulas usan estos valores)'],['Área mínima a construir (m²)',Number(cfg.areaMin)],[],['Monto de ahorro','Grupo','Sin casillas en W y Y','','Requisito']];
+  for(let i=0;i<Math.max(G.length,6);i++){const g=G[i];cf.push([g?Number(g.monto):null,g?g.etiqueta:null,g?(g.sinCasillasWY?'Sí':'No'):null,null,R[i]??null]);}
+  const wsC=XLSX.utils.aoa_to_sheet(cf); wsC['!cols']=[{wch:30},{wch:24},{wch:20},{wch:3},{wch:22}];
+
+  // Resumen con fórmulas
+  const M=metricas(todos(),false), rg=col=>`${T}$${col}$4:$${col}$${ultima}`;
+  const res=[], rs=(fila)=>res.push(fila), fx=(f,v,z)=>({t:typeof v==='number'?'n':'s',v,f,...(z?{z}:{})});
+  rs([{t:'s',v:'RESUMEN (se actualiza solo con las fórmulas)'}]); rs([]);
+  rs([{t:'s',v:'Total de postulantes'},fx(`COUNTA(${rg('B')})`,M.N)]);
+  rs([{t:'s',v:'Avance promedio'},fx(`IFERROR(AVERAGE(${rg('AQ')}),0)`,M.prom,'0%')]); rs([]);
+  rs([{t:'s',v:'Estado'},{t:'s',v:'Postulantes'}]);
+  EST_ORDEN.forEach(s=>rs([{t:'s',v:s},fx(`COUNTIF(${rg('AT')},A${res.length+1})`,M.porEst[s])]));
+  rs([]); rs([{t:'s',v:'Requisito'},{t:'s',v:'Les falta'},{t:'s',v:'En FALTA'},{t:'s',v:'Pendientes'}]);
+  R.forEach((r,i)=>{const col=C(35+i), c=M.cuello.find(z=>z.i===i);rs([fx(`Config!E${5+i}`,r),fx(`COUNTIF(${rg(col)},"FALTA")+COUNTIF(${rg(col)},"PENDIENTE")`,c.falta+c.pend),fx(`COUNTIF(${rg(col)},"FALTA")`,c.falta),fx(`COUNTIF(${rg(col)},"PENDIENTE")`,c.pend)]);});
+  rs([]); rs([{t:'s',v:'Grupo'},{t:'s',v:'Postulantes'},{t:'s',v:'Avance promedio'}]);
+  G.forEach((g,gi)=>{const o=M.grupos[g.etiqueta]||{n:0,suma:0};const fr=res.length+1;rs([fx(`Config!B${5+gi}`,g.etiqueta),fx(`COUNTIF(${rg('AV')},A${fr})`,o.n),fx(`IFERROR(AVERAGEIF(${rg('AV')},A${fr},${rg('AQ')}),0)`,o.n?o.suma/o.n:0,'0%')]);});
+  rs([]); rs([{t:'s',v:'Distrito'},{t:'s',v:'Postulantes'}]);
+  const dis={}; S.post.forEach(p=>{const d=distritoDe(p)||'(sin distrito)';dis[d]=(dis[d]||0)+1;});
+  Object.entries(dis).sort((a,b)=>b[1]-a[1]).forEach(([d,n])=>{const fr=res.length+1;rs([{t:'s',v:d},fx(`COUNTIF(${rg('J')},A${fr})`,n)]);});
+  const wsR=XLSX.utils.aoa_to_sheet([[]]);
+  res.forEach((fila,r)=>fila.forEach((cell,c)=>{if(cell) wsR[XLSX.utils.encode_cell({r,c})]=cell;}));
+  wsR['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:res.length,c:3}}); wsR['!cols']=[{wch:30},{wch:14},{wch:14},{wch:14}];
+
+  // Visitas, Evolución y Archivos (valores)
+  const viv=cfg.vivienda;
+  const wsV=XLSX.utils.aoa_to_sheet([['DNI','Postulante','Distrito','Fecha','Técnico','Resultado','Medidas','Área terreno (m²)','Módulo','Área a construir (m²)','Latitud','Longitud','Observaciones',...viv.map(r=>r.nombre)],
+    ...L.filter(x=>hayVisita(x.p.visita)).map(({p})=>{const v=p.visita;return [p.dni,nombreCompleto(p),distritoDe(p),v.fecha,v.tecnico,v.resultado,v.medidas,num(v.areaTerreno),v.modulo,num(v.areaConstruir),num(v.lat),num(v.lng),v.obs,...viv.map(r=>v.vivienda[r.id]||'')];})]);
+  const wsE=XLSX.utils.aoa_to_sheet([['Fecha','Motivo','Postulantes','Avance promedio',...EST_ORDEN,...R.map(r=>'Cumplen '+r)],
+    ...S.cortes.map(k=>[fmtFecha(k.fecha),k.motivo,k.N,k.prom,...EST_ORDEN.map(s=>k.porEst[s]||0),...(k.reqCumple||[])])]);
+  for(let r=1;r<=S.cortes.length;r++){const a=XLSX.utils.encode_cell({r,c:3}); if(wsE[a]) wsE[a].z='0%';}
+  const wsA=XLSX.utils.aoa_to_sheet([['#','Carga','Archivo','Fecha de carga','Nuevos','Con cambios'],...S.cargas.map((c,i)=>[i+1,c.etiqueta,c.archivo,fmtFecha(c.fecha),c.nuevos??'',c.cambios??''])]);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'TEST DOCUMENTARIO');
+  XLSX.utils.book_append_sheet(wb,wsR,'Resumen');
+  XLSX.utils.book_append_sheet(wb,wsC,'Config');
+  XLSX.utils.book_append_sheet(wb,wsV,'Visitas');
+  XLSX.utils.book_append_sheet(wb,wsE,'Evolución');
+  XLSX.utils.book_append_sheet(wb,wsA,'Archivos');
+  guardarLibro(wb,`seguimiento_automatizado_${hoyISO()}.xlsx`);
+}
+
 function ejecutarPruebas(){
   const out=[];
   const t=(nombre,esperado,obtenido,ok)=>out.push({nombre,esperado:String(esperado),obtenido:String(obtenido),ok:ok===undefined?String(esperado)===String(obtenido):!!ok});
   if(!S.datos){return [{nombre:'Hay un archivo importado',esperado:'sí',obtenido:'no',ok:false}];}
   const cfg=S.config;
-  const P=procesar(S.datos.filas).post;
+  const carga=S.cargas.find(c=>c.id===cargaPrueba)||S.datos;
+  const P=procesar(carga.filas).post;
   const E=new Map(P.map(p=>[p.fila,evaluar(p,{soloArchivo:true,cfg})]));
   const gLima=cfg.grupos.find(g=>Number(g.monto)===2475), gNorte=cfg.grupos.find(g=>Number(g.monto)===3500);
   const enG=(p,g)=>g&&grupoDe(p,cfg)===g;
@@ -1532,9 +1804,9 @@ function exportExcel(){
   const L=filtrados(); if(!L.length){toast('No hay filas para exportar');return;}
   const enc=S.datos.encabezados.map((h,i)=>h||ENC_DEF[i]);
   const cab=[...enc,'% Avance','Estado','Requisitos faltantes','Resultado de la visita'];
-  const crudo=new Map(S.datos.filas.map(f=>[f.fila,f.c]));
+  const crudo=new Map(S.cargas.map(c=>[c.id,new Map(c.filas.map(f=>[f.fila,f.c]))]));
   const filas=L.map(({p,e})=>{
-    const c=crudo.get(p.fila)||[], g=grupoDe(p);
+    const c=(crudo.get(p.cargaId)||new Map()).get(p.fila)||[], g=grupoDe(p);
     const r=[num(p.n)??p.n,p.dni,p.apPat,p.apMat,p.nombres,p.direccion,p.mz,p.lt,p.sublote,distritoDe(p),p.medidas,p.modulo,p.areaPlanilla??'',p.cargaNombre,p.cargaDni,
       p.celulares.length?p.celulares.map(x=>x.num).join(' / '):p.celularOrig,p.obs,p.ahorro??p.ahorroOrig,p.preAhorro,c[19]??'',c[20]??''];
     e.reqs.forEach((s,i)=>r.push(g&&g.sinCasillasWY&&(i===1||i===3)?'':s==='CUMPLE'));
@@ -1596,14 +1868,22 @@ document.addEventListener('click',ev=>{
     case 'salir': bloquear(); break;
     case 'elegirXlsx': $('#fileXlsx').click(); break;
     case 'confirmarImport': confirmarImport(); break;
-    case 'cancelarImport': pendiente=null; renderImportar(); break;
+    case 'cancelarImport': pendientes=[]; renderImportar(); break;
+    case 'quitarPendiente': pendientes.splice(Number(el.dataset.i),1); renderImportar(); break;
+    case 'cerrarResultado': ultimoResultado=null; renderImportar(); break;
+    case 'quitarCarga': {const c=S.cargas.find(x=>x.id===el.dataset.id); if(!c) break;
+      preguntar({titulo:`¿Quitar «${c.etiqueta||c.archivo}»?`,texto:'Los postulantes que solo estaban en este archivo dejan de aparecer. Las visitas y cambios hechos en la app se conservan y vuelven si el archivo se agrega otra vez.',ok:'Quitar archivo',peligro:true})
+        .then(si=>{if(!si)return;S.cargas=S.cargas.filter(x=>x!==c);consolidar();resultadosPruebas=null;reporteCache=null;guardar();toast('Archivo quitado');renderApp();});} break;
+    case 'exportAuto': exportExcelAuto(); break;
+    case 'guardarCorte': crearCorte('Corte manual'); guardar(); toast('Corte guardado'); renderEvolucion(); break;
+    case 'quitarCorte': preguntar({titulo:'¿Quitar este corte?',texto:'Se borra de la evolución. No afecta a los postulantes.',ok:'Quitar corte',peligro:true}).then(si=>{if(!si)return;S.cortes=S.cortes.filter(k=>k.id!==el.dataset.id);guardar();renderEvolucion();}); break;
     case 'irPruebas': irA('datos'); resultadosPruebas=ejecutarPruebas(); $('#testsOut').innerHTML=htmlPruebas(resultadosPruebas); $('#pruebas').scrollIntoView({behavior:'smooth'}); break;
     case 'pruebas': resultadosPruebas=ejecutarPruebas(); $('#testsOut').innerHTML=htmlPruebas(resultadosPruebas); break;
-    case 'respaldo': descargar(`respaldo_calificador_viba_${hoyISO()}.json`,JSON.stringify(S),'application/json'); break;
+    case 'respaldo': descargar(`respaldo_calificador_viba_${hoyISO()}.json`,serializar(),'application/json'); break;
     case 'restaurar': $('#fileJson').click(); break;
     case 'borrarTodo':
       preguntar({titulo:'¿Borrar los datos?',texto:'Se borran los postulantes, las visitas y la configuración. Los usuarios se conservan. No se puede deshacer.',ok:'Borrar datos',peligro:true}).then(si=>{if(!si)return;
-        S={v:1,config:clon(CONFIG_DEF),datos:null,post:[]}; resultadosPruebas=null; reporteCache=null; guardar(); renderApp(); toast('Datos borrados');});
+        cargarEstado(null); ultimoResultado=null; resultadosPruebas=null; reporteCache=null; guardar(); renderApp(); toast('Datos borrados');});
       break;
     case 'filtrar': F={q:'',distrito:'',grupo:'',estado:'',falta:'',visita:'',orden:F.orden}; if(el.dataset.campo) F[el.dataset.campo]=el.dataset.valor; irA('postulantes'); break;
     case 'limpiarFiltros': F={q:'',distrito:'',grupo:'',estado:'',falta:'',visita:'',orden:'fila'}; renderTabla(); break;
@@ -1662,16 +1942,19 @@ document.addEventListener('change',ev=>{
   if(!AUTH) return;
   if(t.dataset.f){F[t.dataset.f]=t.value;pintarFilas();return;}
   if(t.id==='fvDistrito'){FV.distrito=t.value;renderVisitas();return;}
+  if(t.id==='feDesde'||t.id==='feHasta'){FE.desde=$('#feDesde').value;FE.hasta=$('#feHasta').value;renderEvolucion();return;}
+  if(t.id==='cargaPrueba'){cargaPrueba=t.value;resultadosPruebas=null;$('#testsOut').innerHTML='';return;}
   if(['rAlcance','rLista','rContacto','rComentario','rPara'].includes(t.id)){clearTimeout(tPrevia);tPrevia=setTimeout(actualizarPrevia,150);return;}
   if(t.dataset.act2==='distrito'){const p=S.post.find(x=>x.id===fichaId);if(!p)return;const nv=t.value||null;registrar(p,'Distrito',distritoDe(p),nv||('del archivo: '+(p.distritoOrig||'vacío')));p.distritoManual=nv;guardar();pintarFicha();return;}
-  if(t.id==='fileXlsx'&&t.files[0]){leerArchivo(t.files[0]);t.value='';return;}
+  if(t.id==='fileXlsx'&&t.files.length){const fs=[...t.files];t.value='';leerArchivos(fs);return;}
   if(t.id==='fileJson'&&t.files[0]){
     const f=t.files[0]; t.value='';
     f.text().then(async s=>{
       const d=JSON.parse(s);
-      if(!d||d.v!==1||!Array.isArray(d.post)||!d.config) throw new Error('El archivo no es un respaldo de esta app.');
-      if(S.datos&&!await preguntar({titulo:'¿Restaurar el respaldo?',texto:`Se reemplazan los ${S.post.length} postulantes actuales por los ${d.post.length} del respaldo.`,ok:'Restaurar'})) return;
-      S=d; S.config=Object.assign(clon(CONFIG_DEF),d.config); guardar(); resultadosPruebas=null; reporteCache=null; toast('Respaldo restaurado'); renderApp();
+      if(!d||!d.config||!((d.v===1&&Array.isArray(d.post))||(d.v===2&&Array.isArray(d.cargas)))) throw new Error('El archivo no es un respaldo de esta app.');
+      const n=migrar(d);
+      if(S.datos&&!await preguntar({titulo:'¿Restaurar el respaldo?',texto:`Se reemplazan los datos actuales (${S.cargas.length} archivos, ${S.post.length} postulantes) por los del respaldo (${n.cargas.length} archivos).`,ok:'Restaurar'})) return;
+      cargarEstado(d); ultimoResultado=null; guardar(); resultadosPruebas=null; reporteCache=null; toast('Respaldo restaurado'); renderApp();
     }).catch(err=>toast('No se pudo restaurar: '+err.message));
   }
 });
