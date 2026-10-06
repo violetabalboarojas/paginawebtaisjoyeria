@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Pagos{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Cobranza</span><h1>Pagos</h1></div>
+  <div class="actions">{% if user|can:"payments.create" %}<a class="btn btn-accent" href="{% url 'core:payment_create' %}">REGISTRAR PAGO</a>{% endif %}</div>
+</div>
+<form class="filters">
+  <div class="field"><label for="q">Buscar</label><input id="q" name="q" value="{{ q }}" placeholder="Pago, operación, cliente, N° bancario"></div>
+  <div class="field"><label for="desde">Desde</label><input type="date" id="desde" name="desde" value="{{ request.GET.desde }}"></div>
+  <div class="field"><label for="hasta">Hasta</label><input type="date" id="hasta" name="hasta" value="{{ request.GET.hasta }}"></div>
+  <div class="field"><label for="moneda">Moneda</label><select id="moneda" name="moneda"><option value="">Todas</option>{% for v, l in currencies %}<option value="{{ v }}" {% if v == request.GET.moneda %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="estado">Estado</label><select id="estado" name="estado"><option value="">Todos</option><option value="VALIDO" {% if request.GET.estado == "VALIDO" %}selected{% endif %}>Válidos</option><option value="ANULADO" {% if request.GET.estado == "ANULADO" %}selected{% endif %}>Anulados</option></select></div>
+  <button class="btn" type="submit">Filtrar</button>
+</form>
+<div class="table-wrap"><table>
+  <thead><tr><th>Código</th><th>Fecha</th><th>Operación</th><th>Cliente</th><th>Concepto</th><th class="num">Monto</th><th class="num">Capital</th><th class="num">Interés</th><th class="num">Penalidad</th><th>Banco / N°</th><th>Estado</th></tr></thead>
+  <tbody>{% for p in page %}
+    <tr class="{% if p.is_void %}is-void{% endif %}"><td><a href="{% url 'core:payment_detail' p.pk %}"><b>{{ p.code }}</b></a></td><td class="nowrap">{{ p.payment_date|date:"d/m/Y" }}</td>
+      <td><a href="{{ p.operation.get_absolute_url }}">{{ p.operation.code }}</a></td><td>{{ p.client }}</td><td>{{ p.get_concept_display }}</td>
+      <td class="num"><b>{{ p.amount|money:p.currency }}</b></td><td class="num">{{ p.capital|num }}</td><td class="num">{{ p.interest|num }}</td><td class="num">{{ p.penalty|num }}</td>
+      <td>{{ p.bank|default:"" }} {{ p.bank_reference }}</td><td>{% chip p.status %}</td></tr>
+  {% empty %}<tr><td colspan="11" class="muted">No hay pagos con estos filtros.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

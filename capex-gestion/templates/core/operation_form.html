@@ -1,0 +1,72 @@
+{% extends "base.html" %}{% load static capex %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Operaciones</span><h1>{{ title }}</h1></div>
+  {% if op %}<div class="actions"><a class="btn" href="{{ op.get_absolute_url }}">Volver a {{ op.code }}</a></div>{% endif %}
+</div>
+{% if summary %}
+<div class="msg warning">Saldo que se reestructura: capital pendiente {{ summary.capital_pending|money:op.currency }}
+  · intereses pendientes {{ summary.interest_pending|money:op.currency }} · penalidades pendientes {{ summary.penalty_pending|money:op.currency }}.
+  La operación original quedará en estado REESTRUCTURADA con todo su historial.</div>
+{% endif %}
+<form method="post" id="op-form" novalidate style="display:flex;flex-direction:column;gap:20px">{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <div class="card" style="display:flex;flex-direction:column;gap:18px">
+  {% for legend, names in groups %}
+    {% if form|has_any:names %}
+    <fieldset><legend>{{ legend }}</legend>
+      <div class="form-grid">{% for n in names %}{% with f=form|field:n %}{% include "partials/field.html" %}{% endwith %}{% endfor %}</div>
+    </fieldset>
+    {% endif %}
+  {% endfor %}
+  </div>
+  <div class="form-actions">
+    {% if op %}<a class="btn" href="{{ op.get_absolute_url }}">Cancelar</a>{% else %}<a class="btn" href="{% url 'core:operation_list' %}">Cancelar</a>{% endif %}
+    <button class="btn" type="submit" name="action" value="preview">Calcular y ver fórmula</button>
+    {% if preview %}<button class="btn btn-primary" type="submit" name="action" value="confirm">{{ confirm_label }}</button>{% endif %}
+  </div>
+
+  {% if preview %}
+  <section class="card" id="preview" style="display:flex;flex-direction:column;gap:14px">
+    <header><h2>Vista previa: así se calculará</h2><small>Revise la fórmula antes de confirmar. Nada se ha guardado todavía.</small></header>
+    <div class="formula"><b>Fórmulas aplicadas</b><ul style="margin:0;padding:0">{% for line in preview.formulas %}<li><code>{{ line }}</code></li>{% endfor %}</ul></div>
+    <div class="kpis">
+      <div class="kpi"><span class="label">Cuota / interés regular</span><span class="value">{{ preview.installment|money:preview.currency }}</span></div>
+      <div class="kpi"><span class="label">Número de cuotas</span><span class="value">{{ preview.rows|length }}</span></div>
+      <div class="kpi"><span class="label">Vencimiento</span><span class="value">{{ preview.maturity|date:"d/m/Y" }}</span></div>
+      <div class="kpi"><span class="label">Interés total pactado</span><span class="value">{{ preview.total_interest|money:preview.currency }}</span></div>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>N°</th><th>Vencimiento</th><th class="num">Días</th><th class="num">Tasa periodo</th><th class="num">Saldo inicial</th><th class="num">Capital</th><th class="num">Interés</th><th class="num">Cuota</th><th class="num">Saldo</th></tr></thead>
+      <tbody>{% for r in preview.rows %}
+        <tr><td>{{ r.number }}</td><td>{{ r.due_date|date:"d/m/Y" }}</td><td class="num">{{ r.days }}</td><td class="num">{{ r.period_rate|rate_pct }}</td>
+          <td class="num">{{ r.opening_balance|num }}</td><td class="num">{{ r.capital|num }}</td><td class="num">{{ r.interest|num }}{% if r.capitalized_interest %} <small>(cap. {{ r.capitalized_interest|num }})</small>{% endif %}</td>
+          <td class="num"><b>{{ r.total|num }}</b></td><td class="num">{{ r.closing_balance|num }}</td></tr>
+      {% endfor %}</tbody>
+      <tfoot><tr><td colspan="5">Totales</td><td class="num">{{ preview.total_capital|num }}</td><td class="num">{{ preview.total_interest|num }}</td><td colspan="2"></td></tr></tfoot>
+    </table></div>
+    <div class="form-actions"><button class="btn btn-primary" type="submit" name="action" value="confirm">{{ confirm_label }}</button></div>
+  </section>
+  {% endif %}
+</form>
+{{ profiles|json_script:"profiles" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const profiles = JSON.parse(document.getElementById("profiles").textContent || "{}");
+  const sel = document.getElementById("id_profile");
+  if (sel) sel.addEventListener("change", () => {
+    const p = profiles[sel.value];
+    if (!p) return;
+    Object.entries(p).forEach(([k, v]) => { const el = document.getElementById("id_" + k); if (el) el.value = v; });
+  });
+  const form = document.getElementById("op-form");
+  // Si cambian los datos después de la vista previa, se exige recalcular antes de confirmar.
+  form.addEventListener("input", () => {
+    form.querySelectorAll('button[value="confirm"]').forEach((b) => { b.disabled = true; b.title = "Recalcule para ver la nueva fórmula"; });
+  });
+  if (document.getElementById("preview")) document.getElementById("preview").scrollIntoView({ behavior: "smooth" });
+})();
+</script>
+{% endblock %}

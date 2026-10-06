@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Alertas{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Seguimiento</span><h1>Alertas</h1></div></div>
+<form class="filters">
+  <div class="field"><label for="tipo">Tipo</label><select id="tipo" name="tipo" onchange="this.form.submit()"><option value="">Todas</option>{% for k in kinds %}<option {% if k == kind %}selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>
+</form>
+<div class="card">
+{% if alerts %}
+<ul class="alerts">
+  {% for a in alerts %}
+  <li><span class="dot {{ a.level }}"></span><div><div class="kind">{{ a.kind }}</div><a class="msgtext" href="{{ a.url }}">{{ a.message }}</a></div><small class="nowrap">{{ a.date|date:"d/m/Y" }}</small></li>
+  {% endfor %}
+</ul>
+{% else %}<p class="muted">No hay alertas{% if kind %} de este tipo{% endif %}.</p>{% endif %}
+</div>
+{% endblock %}

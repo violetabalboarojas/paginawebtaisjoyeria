@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load static %}
+{% block title %}Iniciar sesión{% endblock %}
+{% block body %}
+<div class="auth">
+  <section class="auth-brand" aria-hidden="false">
+    {% if company.logo %}<img src="{% url 'core:logo' %}" alt="{{ company.company_name }}">{% else %}<img src="{% static 'img/logo-capex.svg' %}" alt="CAPEX Capital Express">{% endif %}
+    <div class="claim"><span>Transformamos tus metas</span><em>en realidades financieras</em></div>
+    <p>Sistema de gestión de bonistas, clientes y operaciones con garantía hipotecaria en fideicomiso.</p>
+  </section>
+  <section class="auth-panel">
+    <form method="post" class="auth-card" novalidate>
+      {% csrf_token %}
+      <div>
+        <h1>Iniciar sesión</h1>
+        <p class="muted">Ingrese con su usuario o correo corporativo.</p>
+      </div>
+      {% include "partials/form_errors.html" %}
+      {% include "partials/fields.html" %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <button class="btn btn-accent" type="submit">INICIAR SESIÓN</button>
+      <a href="{% url 'accounts:password_reset' %}">¿Olvidó su contraseña? Recuperar contraseña</a>
+      <p class="muted" style="font-size:.78rem">La sesión se cierra automáticamente tras {{ session_minutes|default:"30" }} minutos de inactividad.</p>
+    </form>
+  </section>
+</div>
+{% endblock %}

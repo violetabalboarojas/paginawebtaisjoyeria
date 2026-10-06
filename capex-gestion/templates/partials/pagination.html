@@ -1,0 +1,8 @@
+{% load capex %}
+{% if page.paginator.num_pages > 1 %}
+<nav class="pagination" aria-label="Paginación">
+  <span>{{ page.start_index }}–{{ page.end_index }} de {{ page.paginator.count }}</span>
+  {% if page.has_previous %}<a class="btn btn-sm" href="{% qs page=page.previous_page_number %}">Anterior</a>{% endif %}
+  {% if page.has_next %}<a class="btn btn-sm" href="{% qs page=page.next_page_number %}">Siguiente</a>{% endif %}
+</nav>
+{% elif page.paginator.count %}<p class="pagination">{{ page.paginator.count }} registro{{ page.paginator.count|pluralize }}</p>{% endif %}

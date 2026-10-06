@@ -1,0 +1,31 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Pago {{ p.code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Pago · {{ p.operation.code }}</span><h1>{{ p.code }} {% chip p.status %}</h1></div>
+  <div class="actions">
+    <a class="btn" href="{{ p.operation.get_absolute_url }}?tab=pagos">Ver operación</a>
+    {% if user|can:"documents.upload" %}<a class="btn" href="{% url 'core:document_upload' %}?operacion={{ p.operation_id }}">Cargar comprobante</a>{% endif %}
+    {% if user|can:"payments.void" and not p.is_void %}<a class="btn btn-danger" href="{% url 'core:payment_void' p.pk %}">ANULAR PAGO</a>{% endif %}
+  </div>
+</div>
+{% if p.is_void %}<div class="msg error">Pago anulado el {{ p.voided_at|date:"d/m/Y H:i" }} por {{ p.voided_by }}. Motivo: {{ p.void_reason }}</div>{% endif %}
+<div class="grid-2">
+  <div class="card"><header><h2>Datos del pago</h2></header>
+    <dl class="dl">
+      <dt>Cliente</dt><dd>{{ p.client }}</dd><dt>Fecha</dt><dd>{{ p.payment_date|date:"d/m/Y" }}</dd>
+      <dt>Monto</dt><dd>{{ p.amount|money:p.currency }}</dd><dt>Concepto</dt><dd>{{ p.get_concept_display }}</dd>
+      <dt>Capital / interés / penalidad</dt><dd>{{ p.capital|num }} / {{ p.interest|num }} / {{ p.penalty|num }}</dd>
+      <dt>Medio</dt><dd>{{ p.get_method_display }}</dd><dt>Banco</dt><dd>{{ p.bank|default:"–" }}</dd>
+      <dt>N° de operación</dt><dd>{{ p.bank_reference|default:"–" }}</dd><dt>Observaciones</dt><dd>{{ p.notes|default:"–" }}</dd>
+      <dt>Registrado</dt><dd>{{ p.created_at|date:"d/m/Y H:i" }} por {{ p.registered_by }}</dd>
+    </dl>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card"><header><h2>Imputación al cronograma</h2></header>
+      <table><thead><tr><th>Cuota</th><th>Vence</th><th>Concepto</th><th class="num">Monto</th></tr></thead>
+      <tbody>{% for a in allocs %}<tr><td>{{ a.installment.number }}</td><td>{{ a.installment.due_date|date:"d/m/Y" }}</td><td>{{ a.get_component_display }}</td><td class="num">{{ a.amount|num }}</td></tr>{% endfor %}</tbody></table>
+    </div>
+    {% include "core/_docs.html" with docs=docs %}
+  </div>
+</div>
+{% endblock %}
