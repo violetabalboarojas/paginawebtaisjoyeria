@@ -285,13 +285,13 @@ class ReportFilterForm(StyledForm):
         ("intereses_generados", "Intereses generados"), ("intereses_cobrados", "Intereses cobrados"),
         ("penalidades", "Penalidades"), ("morosidad", "Morosidad"), ("vigentes", "Operaciones vigentes"),
         ("vencidas", "Operaciones vencidas"), ("pagos", "Pagos"), ("flujo_mensual", "Flujo mensual"),
-        ("rentabilidad", "Rentabilidad por inversionista"),
+        ("rentabilidad", "Rentabilidad por bonista"),
     ]
     report = forms.ChoiceField(label="Reporte", choices=REPORTS)
     start = forms.DateField(label="Fecha inicial", required=False, widget=DateInput())
     end = forms.DateField(label="Fecha final", required=False, widget=DateInput())
     client = forms.ModelChoiceField(label="Cliente", queryset=Client.objects.all(), required=False)
-    investor = forms.ModelChoiceField(label="Inversionista", queryset=Investor.objects.all(), required=False)
+    investor = forms.ModelChoiceField(label="Bonista", queryset=Investor.objects.all(), required=False)
     status = forms.ChoiceField(label="Estado", choices=[("", "Todos")] + list(OpStatus.choices), required=False)
     currency = forms.ChoiceField(label="Moneda", choices=[("", "Todas")] + CURRENCIES, required=False)
     advisor = UserChoice(label="Asesor", queryset=advisors_qs(), required=False)

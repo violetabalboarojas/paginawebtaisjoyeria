@@ -12,7 +12,7 @@
   <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
     <div class="card"><header><h2>Operaciones</h2>{% chip c.status %}</header>
       <div class="table-wrap" style="border:0"><table>
-        <thead><tr><th>Código</th><th>Inversionista</th><th>Vence</th><th class="num">Capital</th><th class="num">Pendiente</th><th class="num">Atraso</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Código</th><th>Bonista</th><th>Vence</th><th class="num">Capital</th><th class="num">Pendiente</th><th class="num">Atraso</th><th>Estado</th></tr></thead>
         <tbody>{% for o in ops %}
           <tr><td><a href="{{ o.get_absolute_url }}"><b>{{ o.code }}</b></a></td><td>{{ o.investor }}</td><td>{{ o.maturity_date|date:"d/m/Y" }}</td>
             <td class="num">{{ o.principal|money:o.currency }}</td><td class="num">{{ o.capital_pending|money:o.currency }}</td><td class="num">{{ o.days_late }} d</td><td>{% chip o.status %}</td></tr>

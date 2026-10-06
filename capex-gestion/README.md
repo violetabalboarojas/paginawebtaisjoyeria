@@ -1,6 +1,6 @@
 # CAPEX Gestión
 
-Sistema web para gestionar inversionistas, clientes y operaciones con **garantía hipotecaria en fideicomiso**: capital, intereses, cronogramas, pagos, penalidades, garantías, fideicomisos, documentos, reportes y auditoría.
+Sistema web para gestionar bonistas, clientes y operaciones con **garantía hipotecaria en fideicomiso**: capital, intereses, cronogramas, pagos, penalidades, garantías, fideicomisos, documentos, reportes y auditoría.
 
 - **Backend:** Django 5.2 (Python 3.12+)
 - **Base de datos:** PostgreSQL en producción; SQLite solo para desarrollo. Se cambia con `DATABASE_URL`.
@@ -38,7 +38,7 @@ El `Procfile` sirve para Railway o Heroku.
 | Acceso | Login con usuario o correo y contraseña hasheada (PBKDF2-SHA256). Bloqueo temporal tras varios intentos fallidos. Recuperación por correo, cierre de sesión por inactividad, cambio obligatorio de contraseña temporal y cierre forzado de sesiones por el administrador. |
 | Roles y permisos | 6 roles base: ADMINISTRADOR, GERENCIA, FINANZAS, COBRANZAS, ASESOR y CONSULTA. Matriz editable con 26 permisos. Un ASESOR solo ve sus clientes y operaciones asignadas. |
 | Dashboard | Indicadores por moneda (PEN o USD), conteo de operaciones por estado con semáforo y 6 gráficos mensuales: colocación, intereses, recuperaciones, morosidad, penalidades y flujo de caja real más 6 meses proyectados. También muestra las alertas y los próximos vencimientos. |
-| Inversionistas / Clientes | Fichas completas con expediente digital. Un inversionista puede tener varias operaciones. |
+| Bonistas / Clientes | Fichas completas con expediente digital. Un bonista puede tener varias operaciones. |
 | Operaciones | Código automático `OP-AAAA-NNNNN`. La fórmula y el cronograma se muestran antes de registrar. Las condiciones económicas no se pueden editar si ya hay pagos; en ese caso se usa **Reestructurar**, que cierra la original como REESTRUCTURADA y crea una nueva con el saldo. |
 | Pagos | REGISTRAR PAGO con imputación automática o manual (capital, interés, penalidad) y simulación previa. Permite pagos parciales y cancelación anticipada (capital + interés devengado + penalidad). Los pagos no se borran: se **ANULAN** y el registro se conserva. |
 | Penalidades | Fija, porcentual, % diario, monto diario o tasa moratoria, con días de tolerancia. Muestra la fórmula aplicada. La condonación queda en auditoría y nunca se borra el monto calculado. |

@@ -5,8 +5,8 @@ from django.utils import timezone
 # Catálogo de permisos del sistema: (código, módulo, descripción)
 PERMISSION_CATALOG = [
     ("dashboard.view", "Dashboard", "Ver dashboard y alertas"),
-    ("investors.view", "Inversionistas", "Ver inversionistas"),
-    ("investors.edit", "Inversionistas", "Crear y editar inversionistas"),
+    ("investors.view", "Bonistas", "Ver bonistas"),
+    ("investors.edit", "Bonistas", "Crear y editar bonistas"),
     ("clients.view", "Clientes", "Ver clientes"),
     ("clients.edit", "Clientes", "Crear y editar clientes"),
     ("operations.view", "Operaciones", "Ver operaciones y cronogramas"),

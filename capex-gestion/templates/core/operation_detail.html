@@ -5,7 +5,7 @@
   <div>
     <span class="eyebrow">Operación · {{ op.get_currency_display }}</span>
     <h1>{{ op.code }} {% chip op.status %}</h1>
-    <p class="muted">Cliente <a href="{{ op.client.get_absolute_url }}">{{ op.client }}</a> · Inversionista {% if user|can:"investors.view" %}<a href="{{ op.investor.get_absolute_url }}">{{ op.investor }}</a>{% else %}{{ op.investor }}{% endif %}{% if op.advisor %} · Asesor {{ op.advisor }}{% endif %}</p>
+    <p class="muted">Cliente <a href="{{ op.client.get_absolute_url }}">{{ op.client }}</a> · Bonista {% if user|can:"investors.view" %}<a href="{{ op.investor.get_absolute_url }}">{{ op.investor }}</a>{% else %}{{ op.investor }}{% endif %}{% if op.advisor %} · Asesor {{ op.advisor }}{% endif %}</p>
     {% if op.restructured_from %}<p class="muted">Reestructura de <a href="{{ op.restructured_from.get_absolute_url }}">{{ op.restructured_from.code }}</a></p>{% endif %}
     {% for r in restructurings %}<p class="muted">Reestructurada en <a href="{{ r.get_absolute_url }}">{{ r.code }}</a></p>{% endfor %}
     {% if op.close_reason %}<p class="muted">Cierre: {{ op.close_reason }}</p>{% endif %}

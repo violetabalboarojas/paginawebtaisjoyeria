@@ -1,10 +1,10 @@
 {% extends "base.html" %}{% load capex %}{% block title %}{{ inv.full_name }}{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><span class="eyebrow">Inversionista · {{ inv.code }}</span><h1>{{ inv.full_name }}</h1></div>
+  <div><span class="eyebrow">Bonista · {{ inv.code }}</span><h1>{{ inv.full_name }}</h1></div>
   <div class="actions">
-    {% if user|can:"operations.create" %}<a class="btn btn-primary" href="{% url 'core:operation_create' %}?inversionista={{ inv.pk }}">Nueva operación</a>{% endif %}
-    {% if user|can:"documents.upload" %}<a class="btn" href="{% url 'core:document_upload' %}?inversionista={{ inv.pk }}">Cargar documento</a>{% endif %}
+    {% if user|can:"operations.create" %}<a class="btn btn-primary" href="{% url 'core:operation_create' %}?bonista={{ inv.pk }}">Nueva operación</a>{% endif %}
+    {% if user|can:"documents.upload" %}<a class="btn" href="{% url 'core:document_upload' %}?bonista={{ inv.pk }}">Cargar documento</a>{% endif %}
     {% if user|can:"investors.edit" %}<a class="btn" href="{% url 'core:investor_edit' inv.pk %}">Editar</a>{% endif %}
   </div>
 </div>

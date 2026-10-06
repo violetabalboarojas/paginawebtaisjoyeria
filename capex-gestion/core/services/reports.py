@@ -60,7 +60,7 @@ def _op_base(op):
             "advisor": str(op.advisor or ""), "status": op.get_status_display()}
 
 
-OP_COLS = [("code", "Operación", T), ("client", "Cliente", T), ("investor", "Inversionista", T), ("currency", "Moneda", T)]
+OP_COLS = [("code", "Operación", T), ("client", "Cliente", T), ("investor", "Bonista", T), ("currency", "Moneda", T)]
 
 
 def build(kind, ops, f):
@@ -237,8 +237,8 @@ def rentabilidad(ops, start, end):
                      "income": income, "yield": yld.quantize(Decimal("0.01")),
                      "annual": (yld * Decimal(365) / Decimal(days)).quantize(Decimal("0.01"))})
     rows.sort(key=lambda r: -r["income"])
-    return Report("Rentabilidad por inversionista",
-                  [("investor", "Inversionista", T), ("currency", "Moneda", T), ("n", "Operaciones", I), ("placed", "Capital colocado", M),
+    return Report("Rentabilidad por bonista",
+                  [("investor", "Bonista", T), ("currency", "Moneda", T), ("n", "Operaciones", I), ("placed", "Capital colocado", M),
                    ("pending", "Capital pendiente", M), ("capital", "Capital recuperado", M), ("interest", "Intereses cobrados", M),
                    ("penalty", "Penalidades cobradas", M), ("income", "Ingreso total", M), ("yield", "Rendimiento periodo", P),
                    ("annual", "Rendimiento anualizado", P)], rows,

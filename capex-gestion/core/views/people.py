@@ -14,7 +14,7 @@ from ..services.portfolio import create_client, create_investor
 from .common import check_client_access, paginate, scoped_clients, scoped_operations
 
 
-# ------------------------------------------------------------------------------- inversionistas
+# ------------------------------------------------------------------------------- bonistas
 @require("investors.view")
 def investor_list(request):
     qs = Investor.objects.annotate(
@@ -54,14 +54,14 @@ def investor_form(request, pk=None):
         obj = form.save(commit=False)
         if inv:
             obj.save()
-            log_changes("Inversionistas", obj, before)
-            messages.success(request, "Inversionista actualizado.")
+            log_changes("Bonistas", obj, before)
+            messages.success(request, "Bonista actualizado.")
         else:
             create_investor(obj, request.user)
-            messages.success(request, f"Inversionista {obj.code} registrado.")
+            messages.success(request, f"Bonista {obj.code} registrado.")
         return redirect(obj)
     return render(request, "core/form_page.html", {
-        "form": form, "title": f"Editar {inv}" if inv else "Nuevo inversionista",
+        "form": form, "title": f"Editar {inv}" if inv else "Nuevo bonista",
         "back": inv.get_absolute_url() if inv else reverse("core:investor_list"), "section": "investors"})
 
 

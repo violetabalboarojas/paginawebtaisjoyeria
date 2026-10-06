@@ -30,7 +30,7 @@
       {% if user|can:"trusts.view" %}<a href="{% url 'core:trust_list' %}" class="{% if nav == 'trusts' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-6 7 6v11M9 21v-6h6v6"/></svg>Fideicomisos</a>{% endif %}
       <span class="group">Personas</span>
       {% if user|can:"clients.view" %}<a href="{% url 'core:client_list' %}" class="{% if nav == 'clients' %}active{% endif %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Clientes</a>{% endif %}
-      {% if user|can:"investors.view" %}<a href="{% url 'core:investor_list' %}" class="{% if nav == 'investors' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Inversionistas</a>{% endif %}
+      {% if user|can:"investors.view" %}<a href="{% url 'core:investor_list' %}" class="{% if nav == 'investors' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Bonistas</a>{% endif %}
       <span class="group">Gestión</span>
       {% if user|can:"documents.view" %}<a href="{% url 'core:document_list' %}" class="{% if nav == 'documents' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"/></svg>Documentos</a>{% endif %}
       {% if user|can:"reports.view" %}<a href="{% url 'core:reports' %}" class="{% if nav == 'reports' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reportes</a>{% endif %}

@@ -50,8 +50,8 @@ def operation_list(request):
         qs = qs.filter(status=status)
     if request.GET.get("moneda"):
         qs = qs.filter(currency=request.GET["moneda"])
-    if request.GET.get("inversionista"):
-        qs = qs.filter(investor_id=request.GET["inversionista"])
+    if request.GET.get("bonista"):
+        qs = qs.filter(investor_id=request.GET["bonista"])
     return render(request, "core/operation_list.html", {
         "page": paginate(request, qs), "q": q, "statuses": OpStatus.choices, "status": status,
         "currencies": CURRENCIES, "investors": Investor.objects.all() if request.user.can("investors.view") else []})
@@ -63,8 +63,8 @@ def operation_create(request):
     initial = {}
     if request.GET.get("cliente"):
         initial["client"] = request.GET["cliente"]
-    if request.GET.get("inversionista"):
-        initial["investor"] = request.GET["inversionista"]
+    if request.GET.get("bonista"):
+        initial["investor"] = request.GET["bonista"]
     form = OperationForm(request.POST or None, user=request.user, clients=clients, initial=initial)
     preview = None
     if request.method == "POST" and form.is_valid():

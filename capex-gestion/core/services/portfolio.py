@@ -49,8 +49,8 @@ def save_with_code(instance, prefix, width=5):
 
 def create_investor(investor, user):
     investor.created_by = user
-    save_with_code(investor, "INV-")
-    log("CREATE", "Inversionistas", investor, None, snapshot(investor))
+    save_with_code(investor, "BON-")
+    log("CREATE", "Bonistas", investor, None, snapshot(investor))
     return investor
 
 
@@ -88,7 +88,7 @@ def _apply_terms(op):
 @transaction.atomic
 def create_operation(op, user):
     if op.investor.status != "ACTIVO":
-        raise BusinessError("El inversionista no está activo.")
+        raise BusinessError("El bonista no está activo.")
     if op.client.status == "INACTIVO":
         raise BusinessError("El cliente está inactivo.")
     rows = _apply_terms(op)

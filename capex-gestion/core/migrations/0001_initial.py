@@ -495,7 +495,7 @@ class Migration(migrations.Migration):
                         editable=False,
                         max_length=20,
                         unique=True,
-                        verbose_name="ID del inversionista",
+                        verbose_name="ID del bonista",
                     ),
                 ),
                 (
@@ -928,7 +928,7 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.PROTECT,
                         related_name="operations",
                         to="core.investor",
-                        verbose_name="Inversionista",
+                        verbose_name="Bonista",
                     ),
                 ),
                 (

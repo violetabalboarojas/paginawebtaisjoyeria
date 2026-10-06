@@ -164,7 +164,7 @@ class FinancialProfile(models.Model):
 # --------------------------------------------------------------------------------------
 class Investor(TimeStamped):
     STATUS = [("ACTIVO", "Activo"), ("INACTIVO", "Inactivo")]
-    code = models.CharField("ID del inversionista", max_length=20, unique=True, editable=False)
+    code = models.CharField("ID del bonista", max_length=20, unique=True, editable=False)
     first_name = models.CharField("Nombres o razón social", max_length=120)
     last_name = models.CharField("Apellidos", max_length=120, blank=True)
     doc_type = models.CharField("Tipo de documento", max_length=3, choices=DOC_TYPES, default="DNI")
@@ -236,7 +236,7 @@ ECONOMIC_FIELDS = [
 
 class Operation(TimeStamped):
     code = models.CharField("Código", max_length=20, unique=True, editable=False)
-    investor = models.ForeignKey(Investor, on_delete=models.PROTECT, related_name="operations", verbose_name="Inversionista")
+    investor = models.ForeignKey(Investor, on_delete=models.PROTECT, related_name="operations", verbose_name="Bonista")
     client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name="operations", verbose_name="Cliente")
     advisor = models.ForeignKey(USER, null=True, blank=True, on_delete=models.PROTECT, related_name="operations", verbose_name="Asesor")
     profile = models.ForeignKey(FinancialProfile, null=True, blank=True, on_delete=models.SET_NULL, verbose_name="Perfil de condiciones")

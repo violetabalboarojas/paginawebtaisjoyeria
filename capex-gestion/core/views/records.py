@@ -78,10 +78,10 @@ def _target(request):
         c = get_object_or_404(Client, pk=g["cliente"])
         check_client_access(user, c)
         return {"client": c}, c.get_absolute_url(), str(c)
-    if g.get("inversionista"):
+    if g.get("bonista"):
         if not user.can("investors.view"):
             raise PermissionDenied
-        i = get_object_or_404(Investor, pk=g["inversionista"])
+        i = get_object_or_404(Investor, pk=g["bonista"])
         return {"investor": i}, i.get_absolute_url(), str(i)
     if g.get("fideicomiso"):
         if not user.can("trusts.view"):

@@ -164,7 +164,7 @@ def _statement_blocks(ctx):
     m = lambda v: f"{sym} {v:,.2f}" if v is not None else "–"  # noqa: E731
     general = [
         ("Operación", op.code), ("Estado", op.get_status_display()), ("Cliente", f"{op.client} ({op.client.doc_type} {op.client.doc_number})"),
-        ("Inversionista", str(op.investor)), ("Capital inicial", m(op.principal)), ("Capital pendiente", m(s["capital_pending"])),
+        ("Bonista", str(op.investor)), ("Capital inicial", m(op.principal)), ("Capital pendiente", m(s["capital_pending"])),
         ("Tasa", f"{op.get_rate_type_display()} {op.rate_value.normalize():f}% · {op.get_interest_method_display()} · base {op.day_base}"),
         ("Periodicidad / amortización", f"{op.get_periodicity_display()} · {op.get_amortization_display()}"),
         ("Fecha inicial", op.start_date.strftime("%d/%m/%Y")), ("Fecha de vencimiento", op.maturity_date.strftime("%d/%m/%Y")),

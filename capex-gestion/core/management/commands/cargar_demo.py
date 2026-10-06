@@ -37,7 +37,7 @@ def fake_pdf(title):
 
 
 class Command(BaseCommand):
-    help = "Carga usuarios, inversionistas, clientes, operaciones, pagos y garantías FICTICIOS para probar el sistema."
+    help = "Carga usuarios, bonistas, clientes, operaciones, pagos y garantías FICTICIOS para probar el sistema."
 
     def add_arguments(self, parser):
         parser.add_argument("--clave", required=True, help="Contraseña para los usuarios demo (uno por rol).")
@@ -152,7 +152,7 @@ class Command(BaseCommand):
         t1.operations.set([o1, o7])
         t2 = Trust.objects.create(fiduciary_entity="Fiduciaria Demo S.A.", code="FID-DEMO-002", constitution_date=add_months(T, -1),
                                   trust_estate="Patrimonio en fideicomiso Pachacámac", settlor="Rosa Elena Paucar Lima",
-                                  trustee="Fiduciaria Demo S.A.", beneficiary="CAPEX Express S.A.C. en representación de inversionistas",
+                                  trustee="Fiduciaria Demo S.A.", beneficiary="CAPEX Express S.A.C. en representación de bonistas",
                                   contributed_assets="Terreno urbano partida 11110006", status="PENDIENTE_INSCRIPCION", created_by=admin)
         t2.operations.set([o6, o2, o3, o4])
         for op in (o1, o3, o4):
@@ -162,5 +162,5 @@ class Command(BaseCommand):
         store_document(fake_pdf("DNI demo"), "DNI", admin, title="DNI representante (demo)", client=cl[2])
         refresh_portfolio(force=True)
         self.stdout.write(self.style.SUCCESS(
-            f"Demo cargada: {len(inv)} inversionistas, {len(cl)} clientes, {len(ops)} operaciones. "
+            f"Demo cargada: {len(inv)} bonistas, {len(cl)} clientes, {len(ops)} operaciones. "
             f"Usuarios demo: {', '.join(u for u, *_ in DEMO_USERS)} (contraseña indicada en --clave)."))

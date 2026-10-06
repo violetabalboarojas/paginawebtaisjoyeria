@@ -8,11 +8,11 @@ urlpatterns = [
     path("alertas/", dashboard.alerts, name="alerts"),
     path("buscar/", dashboard.search, name="search"),
     path("logo/", records.logo, name="logo"),
-    # Inversionistas
-    path("inversionistas/", people.investor_list, name="investor_list"),
-    path("inversionistas/nuevo/", people.investor_form, name="investor_create"),
-    path("inversionistas/<int:pk>/", people.investor_detail, name="investor_detail"),
-    path("inversionistas/<int:pk>/editar/", people.investor_form, name="investor_edit"),
+    # Bonistas
+    path("bonistas/", people.investor_list, name="investor_list"),
+    path("bonistas/nuevo/", people.investor_form, name="investor_create"),
+    path("bonistas/<int:pk>/", people.investor_detail, name="investor_detail"),
+    path("bonistas/<int:pk>/editar/", people.investor_form, name="investor_edit"),
     # Clientes
     path("clientes/", people.client_list, name="client_list"),
     path("clientes/nuevo/", people.client_form, name="client_create"),

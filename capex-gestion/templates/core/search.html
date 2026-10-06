@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% load capex %}{% block title %}Buscar{% endblock %}
 {% block content %}
 <div class="page-head"><div><span class="eyebrow">Buscador general</span><h1>{% if q %}Resultados para “{{ q }}”{% else %}Buscar{% endif %}</h1></div></div>
-{% if not q or q|length < 2 %}<p class="muted">Escriba al menos 2 caracteres: nombre, DNI, RUC, código de operación, teléfono, partida registral, inversionista o cliente.</p>
+{% if not q or q|length < 2 %}<p class="muted">Escriba al menos 2 caracteres: nombre, DNI, RUC, código de operación, teléfono, partida registral, bonista o cliente.</p>
 {% elif not total %}<div class="card"><p>Sin coincidencias. Revise la ortografía o busque por número de documento.</p></div>{% endif %}
 {% if r.operations %}<div class="card"><header><h2>Operaciones</h2></header><div class="table-wrap" style="border:0"><table><tbody>
 {% for o in r.operations %}<tr><td><a href="{{ o.get_absolute_url }}"><b>{{ o.code }}</b></a></td><td>{{ o.client }}</td><td>{{ o.investor }}</td><td class="num">{{ o.principal|money:o.currency }}</td><td>{% chip o.status %}</td></tr>{% endfor %}
@@ -9,7 +9,7 @@
 {% if r.clients %}<div class="card"><header><h2>Clientes</h2></header><div class="table-wrap" style="border:0"><table><tbody>
 {% for c in r.clients %}<tr><td><a href="{{ c.get_absolute_url }}"><b>{{ c.full_name }}</b></a></td><td>{{ c.doc_type }} {{ c.doc_number }}</td><td>{{ c.phone }}</td><td>{{ c.code }}</td></tr>{% endfor %}
 </tbody></table></div></div>{% endif %}
-{% if r.investors %}<div class="card"><header><h2>Inversionistas</h2></header><div class="table-wrap" style="border:0"><table><tbody>
+{% if r.investors %}<div class="card"><header><h2>Bonistas</h2></header><div class="table-wrap" style="border:0"><table><tbody>
 {% for i in r.investors %}<tr><td><a href="{{ i.get_absolute_url }}"><b>{{ i.full_name }}</b></a></td><td>{{ i.doc_type }} {{ i.doc_number }}</td><td>{{ i.phone }}</td><td>{{ i.code }}</td></tr>{% endfor %}
 </tbody></table></div></div>{% endif %}
 {% if r.properties %}<div class="card"><header><h2>Inmuebles en garantía</h2></header><div class="table-wrap" style="border:0"><table><tbody>

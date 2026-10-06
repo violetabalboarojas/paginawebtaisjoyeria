@@ -1,8 +1,8 @@
-{% extends "base.html" %}{% load capex %}{% block title %}Inversionistas{% endblock %}
+{% extends "base.html" %}{% load capex %}{% block title %}Bonistas{% endblock %}
 {% block content %}
 <div class="page-head">
-  <div><span class="eyebrow">Base de datos</span><h1>Inversionistas</h1></div>
-  <div class="actions">{% if user|can:"investors.edit" %}<a class="btn btn-primary" href="{% url 'core:investor_create' %}">Nuevo inversionista</a>{% endif %}</div>
+  <div><span class="eyebrow">Base de datos</span><h1>Bonistas</h1></div>
+  <div class="actions">{% if user|can:"investors.edit" %}<a class="btn btn-primary" href="{% url 'core:investor_create' %}">Nuevo bonista</a>{% endif %}</div>
 </div>
 <form class="filters">
   <div class="field"><label for="q">Buscar</label><input id="q" name="q" value="{{ q }}" placeholder="Nombre, documento o ID"></div>
@@ -10,12 +10,12 @@
   <button class="btn" type="submit">Filtrar</button>
 </form>
 <div class="table-wrap"><table>
-  <thead><tr><th>ID</th><th>Inversionista</th><th>Documento</th><th>Teléfono</th><th>Banco</th><th class="num">Operaciones</th><th class="num">Activas</th><th>Estado</th></tr></thead>
+  <thead><tr><th>ID</th><th>Bonista</th><th>Documento</th><th>Teléfono</th><th>Banco</th><th class="num">Operaciones</th><th class="num">Activas</th><th>Estado</th></tr></thead>
   <tbody>
   {% for i in page %}
     <tr><td class="nowrap">{{ i.code }}</td><td><a href="{{ i.get_absolute_url }}"><b>{{ i.full_name }}</b></a></td><td class="nowrap">{{ i.doc_type }} {{ i.doc_number }}</td>
       <td>{{ i.phone }}</td><td>{{ i.bank }}</td><td class="num">{{ i.n_ops }}</td><td class="num">{{ i.n_active }}</td><td>{% chip i.status %}</td></tr>
-  {% empty %}<tr><td colspan="8" class="muted">Aún no hay inversionistas. Registre el primero con “Nuevo inversionista”.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="8" class="muted">Aún no hay bonistas. Registre el primero con “Nuevo bonista”.</td></tr>{% endfor %}
   </tbody>
 </table></div>
 {% include "partials/pagination.html" %}

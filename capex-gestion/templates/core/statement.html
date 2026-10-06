@@ -20,7 +20,7 @@
   <div class="card"><header><h2>Datos de la operación</h2></header>
     <dl class="dl">
       <dt>Cliente</dt><dd>{{ op.client }} · {{ op.client.doc_type }} {{ op.client.doc_number }}</dd>
-      <dt>Inversionista</dt><dd>{{ op.investor }}</dd>
+      <dt>Bonista</dt><dd>{{ op.investor }}</dd>
       <dt>Capital inicial</dt><dd>{{ op.principal|money:cur }}</dd>
       <dt>Tasa</dt><dd>{{ op.get_rate_type_display }} {{ op.rate_value|num:4 }}% · {{ op.get_interest_method_display|lower }} · base {{ op.day_base }}</dd>
       <dt>Fecha inicial</dt><dd>{{ op.start_date|date:"d/m/Y" }}</dd>
