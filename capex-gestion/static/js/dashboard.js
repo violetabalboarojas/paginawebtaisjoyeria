@@ -35,6 +35,13 @@
     { label: "Generadas", data: data.penalty_generated, backgroundColor: C.orange, borderRadius: 4 },
     { label: "Cobradas", data: data.penalty_paid, backgroundColor: C.teal, borderRadius: 4 }] }, options: base(legendOn) });
 
+  const sd = JSON.parse(document.getElementById("status-data").textContent);
+  const donut = { responsive: true, maintainAspectRatio: false, cutout: "62%", plugins: { legend: { position: "right", labels: { boxWidth: 10 } } } };
+  new Chart("ch-status", { type: "doughnut", data: { labels: ["Al día", "Próximas a vencer", "Vencidas", "En mora crítica", "Canceladas"],
+    datasets: [{ data: sd.ops, backgroundColor: [C.green, v("--yellow"), C.red, v("--black"), v("--gray")], borderColor: v("--surface"), borderWidth: 2 }] }, options: donut });
+  new Chart("ch-inst", { type: "doughnut", data: { labels: ["Pagadas", "Vencidas", "Por vencer"],
+    datasets: [{ data: sd.inst, backgroundColor: [C.teal, C.red, C.aqua], borderColor: v("--surface"), borderWidth: 2 }] }, options: donut });
+
   const back = data.back;
   new Chart("ch-cash", { data: { labels: data.labels_all, datasets: [
     { type: "bar", label: "Ingresos (cobranza)", data: data.cash_in.map((x, i) => i < back ? x : null), backgroundColor: C.teal, borderRadius: 4, stack: "a" },

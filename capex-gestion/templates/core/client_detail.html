@@ -38,4 +38,6 @@
     {% include "core/_docs.html" with docs=docs %}
   </div>
 </div>
+<div class="page-head"><h2>Ficha individual y cronograma de pagos</h2></div>
+{% for f in fichas %}{% include "core/_ficha.html" %}{% empty %}<p class="muted">Sin operaciones.</p>{% endfor %}
 {% endblock %}

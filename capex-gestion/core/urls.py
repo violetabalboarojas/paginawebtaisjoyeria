@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import dashboard, operations, payments, people, records, reports
+from .views import dashboard, imports, operations, payments, people, records, reports
 
 app_name = "core"
 urlpatterns = [
@@ -49,6 +49,9 @@ urlpatterns = [
     path("documentos/cargar/", records.document_upload, name="document_upload"),
     path("documentos/<int:pk>/descargar/", records.document_download, name="document_download"),
     path("documentos/<int:pk>/anular/", records.document_void, name="document_void"),
+    # Importación de Excel
+    path("importar/", imports.import_list, name="import_list"),
+    path("importar/<int:pk>/", imports.import_preview, name="import_preview"),
     # Reportes y configuración
     path("reportes/", reports.reports, name="reports"),
     path("configuracion/", records.settings_view, name="settings"),

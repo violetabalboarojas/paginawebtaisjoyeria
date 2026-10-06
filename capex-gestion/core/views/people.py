@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -8,9 +10,9 @@ from accounts.permissions import require
 from audit.services import log_changes, snapshot
 
 from ..forms import ClientForm, InvestorForm
-from ..models import Client, Investor, OpStatus
+from ..models import Client, Investor, Operation, OpStatus
 from ..services.analytics import CLOSED
-from ..services.portfolio import create_client, create_investor
+from ..services.portfolio import create_client, create_investor, ltv, operation_summary, refresh_operation, today
 from .common import check_client_access, paginate, scoped_clients, scoped_operations
 
 
@@ -32,17 +34,26 @@ def investor_list(request):
 @require("investors.view")
 def investor_detail(request, pk):
     inv = get_object_or_404(Investor, pk=pk)
-    ops = inv.operations.select_related("client").order_by("-start_date")
+    held = Operation.objects.filter(Q(investor=inv) | Q(holdings__investor=inv)).distinct()
+    ops = held.select_related("client").order_by("-start_date")
     totals = {}
     for cur in ("PEN", "USD"):
         sub = ops.filter(currency=cur)
         if sub.exists():
-            totals[cur] = {
-                "placed": sub.filter(restructured_from__isnull=True).aggregate(s=Sum("principal"))["s"] or 0,
-                "pending": sub.exclude(status__in=CLOSED).aggregate(s=Sum("capital_pending"))["s"] or 0,
-            }
+            totals[cur] = {"placed": 0, "pending": 0}
+            for o in sub:
+                share = next((h.percentage for h in o.holdings.all() if h.investor_id == inv.pk), None)
+                share = share if share is not None else (Decimal(1) if o.investor_id == inv.pk else Decimal(0))
+                if not o.restructured_from_id:
+                    totals[cur]["placed"] += o.principal * share
+                if o.status not in CLOSED:
+                    totals[cur]["pending"] += o.capital_pending * share
     docs = inv.documents.filter(is_void=False)
-    return render(request, "core/investor_detail.html", {"inv": inv, "ops": ops, "totals": totals, "docs": docs})
+    shares = {h.operation_id: h.percentage for h in inv.holdings.all()}
+    fichas = [_ficha(op, shares.get(op.pk, Decimal(1) if op.investor_id == inv.pk and not op.holdings.exists() else None))
+              for op in ops]
+    return render(request, "core/investor_detail.html", {"inv": inv, "ops": ops, "totals": totals, "docs": docs,
+                                                         "fichas": fichas, "person": inv, "is_investor": True})
 
 
 @require("investors.edit")
@@ -87,7 +98,21 @@ def client_detail(request, pk):
     ops = scoped_operations(request.user, client.operations.select_related("investor")).order_by("-start_date")
     docs = client.documents.filter(is_void=False)
     payments = client.payments.select_related("operation")[:20] if request.user.can("payments.view") else []
-    return render(request, "core/client_detail.html", {"c": client, "ops": ops, "docs": docs, "payments": payments})
+    fichas = [_ficha(op) for op in ops]
+    return render(request, "core/client_detail.html", {"c": client, "ops": ops, "docs": docs, "payments": payments,
+                                                       "fichas": fichas, "person": client})
+
+
+def _ficha(op, share=None):
+    """Datos de la ficha individual de una operación (y la parte del bonista si corresponde)."""
+    if op.refreshed_on != today() and not op.closed_manually:
+        refresh_operation(op)
+    rows = list(op.current_schedule())
+    s = operation_summary(op, rows=rows)
+    mortgages = list(op.mortgages.select_related("property"))
+    return {"op": op, "rows": rows, "s": s, "share": share, "mortgages": mortgages, "trusts": list(op.trusts.all()),
+            "ltv": ltv(op) if mortgages else None,
+            "share_rows": [{"r": r, "part": (r.capital + r.interest) * share} for r in rows] if share is not None else None}
 
 
 @require("clients.edit")

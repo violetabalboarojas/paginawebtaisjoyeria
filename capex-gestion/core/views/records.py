@@ -32,8 +32,40 @@ def trust_list(request):
 @require("trusts.view")
 def trust_detail(request, pk):
     t = get_object_or_404(Trust, pk=pk)
-    ops = scoped_operations(request.user, t.operations.select_related("client", "investor"))
-    return render(request, "core/trust_detail.html", {"t": t, "ops": ops, "docs": t.documents.filter(is_void=False)})
+    ops = list(scoped_operations(request.user, t.operations.select_related("client", "investor")))
+    return render(request, "core/trust_detail.html", {"t": t, "ops": ops, "docs": t.documents.filter(is_void=False),
+                                                      "consolidated": _consolidated(t, ops)})
+
+
+def _consolidated(trust, ops):
+    """Cronograma consolidado del fideicomiso (suma de series por fecha) + comisión administrativa."""
+    from collections import OrderedDict
+    from decimal import Decimal
+    cur = {o.currency for o in ops}
+    if len(cur) != 1:
+        return None
+    rows = OrderedDict()
+    for op in ops:
+        for r in op.current_schedule():
+            g = rows.setdefault(r.due_date, {"date": r.due_date, "label": r.label or str(r.number), "opening": Decimal(0), "amort": Decimal(0),
+                                             "interest": Decimal(0), "penalty": Decimal(0), "paid": Decimal(0), "states": set()})
+            g["opening"] += r.opening_balance
+            g["amort"] += r.capital
+            g["interest"] += r.interest
+            g["penalty"] += r.penalty_amount
+            g["paid"] += r.paid_total
+            g["states"].add(r.status)
+    out = []
+    for d in sorted(rows):
+        g = rows[d]
+        g["cuota"] = g["amort"] + g["interest"]
+        g["fee"] = trust.admin_fee if g["label"].upper() != "PREPAGO" else Decimal(0)
+        g["total"] = g["cuota"] + g["fee"] + g["penalty"]
+        g["status"] = "PAGADO" if g["states"] == {"PAGADO"} else "VENCIDO" if "VENCIDO" in g["states"] else \
+            "PAGO_PARCIAL" if "PAGADO" in g["states"] or "PAGO_PARCIAL" in g["states"] else "PENDIENTE"
+        out.append(g)
+    tot = {k: sum((g[k] for g in out), Decimal(0)) for k in ("amort", "interest", "cuota", "fee", "penalty", "total")}
+    return {"rows": out, "tot": tot, "currency": cur.pop()}
 
 
 @require("trusts.edit")

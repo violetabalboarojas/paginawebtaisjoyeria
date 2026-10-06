@@ -62,6 +62,7 @@ class Terms:
     penalty_value: Decimal = Decimal("0")
     penalty_base: str = "INSTALLMENT"
     penalty_grace_days: int = 0
+    units: int = 1  # cantidad de bonos: el interés se redondea por bono, como en los cronogramas de titulización
 
     @classmethod
     def from_obj(cls, obj):
@@ -163,7 +164,10 @@ class Terms:
                 lines.append(f"TEA = (1 + TNM × 12/{m})^{m} − 1 = (1 + {rv} × 12/{m})^{m} − 1 = {pct(tea)}")
             lines.append(f"Tasa del periodo i(d) = (1 + TEA)^(d / {self.day_base}) − 1")
             lines.append(f"Ejemplo: i({d}) = (1 + {pct(tea)})^({d}/{self.day_base}) − 1 = {pct(self.period_rate(d), 6)}")
-        lines.append("Interés de la cuota = saldo de capital al inicio del periodo × i(d)")
+        if (self.units or 1) > 1:
+            lines.append(f"Interés de la cuota = ROUND(saldo / {self.units} bonos × i(d), 2) × {self.units} bonos (redondeo por bono)")
+        else:
+            lines.append("Interés de la cuota = saldo de capital al inicio del periodo × i(d)")
         if self.amortization == "BULLET":
             lines.append("Amortización bullet: cada cuota paga solo intereses; el capital se paga completo en la última cuota.")
         elif self.amortization == "FRENCH":
@@ -219,7 +223,7 @@ def build_schedule(t: Terms):
     for k, due in enumerate(dates, start=1):
         days = t.period_days(prev, due)
         i = t.period_rate(days)
-        interest = money(balance * i)
+        interest = unit_interest(balance, i, t.units)
         opening = balance
         capital = ZERO
         capitalized = ZERO
@@ -249,6 +253,12 @@ def build_schedule(t: Terms):
         rows.append(Row(k, prev, due, days, i, opening, capital, interest, capitalized, balance))
         prev = due
     return rows
+
+
+def unit_interest(balance, i, units=1):
+    """Interés redondeado por unidad: ROUND(saldo / unidades × i, 2) × unidades."""
+    units = max(1, int(units or 1))
+    return money(money(Decimal(balance) / units * i) * units)
 
 
 def regular_installment(rows, t: Terms):
@@ -291,6 +301,9 @@ def penalty_formula_lines(ptype, value, base, grace, day_base):
         return [f"Penalidad diaria = Σ ({base_txt} de cada día × {v}%) por cada día de atraso, hasta que se pague.{grace_txt}"]
     if ptype == "DAILY_FIXED":
         return [f"Penalidad diaria fija = {v} × días de atraso mientras {base_txt} siga impaga.{grace_txt}"]
+    if ptype == "IMC":
+        return [f"Interés moratorio + compensatorio (IMC) = 2 × {base_txt} × ((1 + {v}%)^(días de atraso / {day_base}) − 1), "
+                f"cada uno redondeado a 2 decimales; tasa máxima anual del BCRP.{grace_txt}"]
     return [f"Interés moratorio = Σ ({base_txt} × {v}% / {day_base}) por cada día de atraso (interés simple).{grace_txt}"]
 
 
@@ -356,6 +369,8 @@ def compute_penalty(ptype, value, base, grace_days, day_base, due_date, base_amo
             inc = b * value / HUNDRED
         elif ptype == "DAILY_FIXED":
             inc = value
+        elif ptype == "IMC":
+            inc = ZERO  # se calcula por tramos más abajo (compuesto)
         else:  # MORATORY
             inc = b * value / HUNDRED / Decimal(day_base)
         total += inc
@@ -368,6 +383,13 @@ def compute_penalty(ptype, value, base, grace_days, day_base, due_date, base_amo
         day += datetime.timedelta(days=1)
     if seg_base is not None:
         segments.append((seg_start, seg_base, seg_days))
+    if ptype == "IMC":
+        r = value / HUNDRED
+        comp = sum((money(b * ((ONE + r) ** (Decimal(n) / Decimal(day_base)) - ONE)) for (_, b, n) in segments), ZERO)
+        amt = money(comp * 2)
+        parts = [f"{b} × ((1 + {value.normalize():f}%)^({n}/{day_base}) − 1)" for (_, b, n) in segments]
+        formula = f"Moratorio {comp} + compensatorio {comp} = {amt}  [" + " + ".join(parts) + "]"
+        return PenaltyResult(amt, days_late, applies_from, formula, segments)
     amt = money(total)
     if ptype == "DAILY_PERCENT":
         parts = [f"{b} × {value.normalize():f}% × {n} d" for (_, b, n) in segments]

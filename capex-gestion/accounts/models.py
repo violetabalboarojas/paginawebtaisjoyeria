@@ -27,6 +27,7 @@ PERMISSION_CATALOG = [
     ("documents.void", "Documentos", "Anular documentos"),
     ("reports.view", "Reportes", "Ver reportes y estados de cuenta"),
     ("reports.export", "Reportes", "Exportar a Excel y PDF"),
+    ("imports.run", "Importación", "Importar cronogramas desde Excel"),
     ("audit.view", "Auditoría", "Ver bitácora de auditoría"),
     ("settings.manage", "Configuración", "Configurar empresa y parámetros"),
     ("users.manage", "Configuración", "Administrar usuarios, roles y permisos"),
@@ -43,7 +44,7 @@ DEFAULT_ROLES = {
     "FINANZAS": ("Operaciones, pagos y penalidades", _VIEW + [
         "investors.edit", "clients.edit", "operations.create", "operations.edit", "operations.all",
         "payments.create", "payments.void", "penalties.manage", "guarantees.edit", "trusts.edit",
-        "documents.upload", "reports.export"]),
+        "documents.upload", "reports.export", "imports.run"]),
     "COBRANZAS": ("Seguimiento de cobranza y registro de pagos", _VIEW + [
         "operations.all", "payments.create", "documents.upload", "reports.export"]),
     "ASESOR": ("Clientes y operaciones asignadas", [

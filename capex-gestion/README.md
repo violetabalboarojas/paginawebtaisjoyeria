@@ -50,6 +50,39 @@ El `Procfile` sirve para Railway o Heroku.
 | Auditoría | Bitácora inmutable: usuario, fecha, hora, acción, módulo, registro, valor anterior, valor nuevo e IP. Exportable a Excel. |
 | Configuración | Empresa, logo, moneda, tipo de cambio, límite de LTV, días de alerta, días para pasar a mora, vigencia de tasación, orden de imputación, documentos obligatorios y perfiles de condiciones (tipos de tasa y penalidad). |
 
+## Importar Excel (cronogramas de bonos titulizados)
+
+Menú **Importar Excel**, o el botón IMPORTAR EXCEL del dashboard y de Operaciones (permiso `imports.run`).
+
+**Qué reconoce el importador**
+
+- **Bloques por serie:** "Monto Emisión", "Valor Nominal", "Cant. Bonos", "Moneda", "Plazo", "TNM" y "TEA", con la tabla *Periodo / Fecha / Principal / Amortización / Interés / Cuota / Estado*. La fila de prepago se identifica por la etiqueta "PREPAGO".
+- **Bloque consolidado:** columna "Com. Adm." (comisión administrativa por periodo).
+- **Hoja IMC:** tasas máximas del BCRP, fecha de corte, cuotas vencidas con interés moratorio y compensatorio, y distribución por bonista (%), incluida la retención de IR.
+- **Libros con varias hojas de cronograma:** se recomienda la hoja que usa la hoja IMC (por sus rangos con nombre), y el usuario puede elegir otra.
+
+**Revisión antes de confirmar.** Al cargar el archivo no se guarda nada. La pantalla de revisión muestra:
+
+- Por serie: capital, intereses generados, pagados y pendientes, cuotas pagadas, vencidas y por vencer, penalidad IMC al día y total por cobrar.
+- El cronograma completo, con el interés del sistema junto al del Excel. Cada interés se recalcula con `ROUND(principal / bonos × ((1+TEA)^(días/360) − 1), 2) × bonos`.
+- El control del IMC contra la hoja del Excel a su fecha de corte.
+- Los errores, advertencias y datos que requieren revisión manual: discrepancias entre hojas, cliente faltante y bonistas sin DNI.
+
+**Al confirmar** (en una sola transacción, todo auditado):
+
+- Se crea una operación por serie, con las fechas del Excel y la penalidad tipo IMC.
+- Se registran como pagos las cuotas "Pagado". Como el Excel no trae la fecha real, se usa la de vencimiento.
+- Se crean los bonistas con su participación, el fideicomiso con su comisión, y opcionalmente se actualizan las tasas máximas y la retención de IR en Configuración.
+
+**Sin duplicados.** Cada serie se identifica por *fideicomiso + serie*. Reimportar un archivo solo agrega los pagos de cuotas que pasaron a "Pagado".
+
+**Después de importar**, cada día el sistema:
+
+- Marca como **Vencida** toda cuota impaga con fecha pasada.
+- Calcula los días de atraso (hoy − vencimiento).
+- Recalcula el IMC.
+- Mueve la operación a *En mora crítica* cuando supera los días configurados.
+
 ## Motor de cálculo (`core/services/engine.py`)
 
 No hay una fórmula fija. Cada operación guarda su propia copia de los parámetros:
@@ -108,4 +141,4 @@ Reglas de integridad:
 DJANGO_DEBUG=1 python manage.py test core
 ```
 
-Son 26 pruebas: motor financiero, flujo de login y bloqueo, permisos por rol, alcance del asesor, alta con vista previa, pago, simulación, anulación, cancelación anticipada, condonación, exportaciones e inmutabilidad de la auditoría. Pasan en SQLite y en PostgreSQL 16.
+Son 29 pruebas: motor financiero, flujo de login y bloqueo, permisos por rol, alcance del asesor, alta con vista previa, pago, simulación, anulación, cancelación anticipada, condonación, exportaciones inmutabilidad de la auditoría e importación de Excel (con un libro sintético de datos ficticios). Pasan en SQLite y en PostgreSQL 16.

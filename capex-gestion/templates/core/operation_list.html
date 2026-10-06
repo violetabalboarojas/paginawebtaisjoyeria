@@ -3,6 +3,7 @@
 <div class="page-head">
   <div><span class="eyebrow">Cartera</span><h1>Operaciones</h1></div>
   <div class="actions">
+    {% if user|can:"imports.run" %}<a class="btn" href="{% url 'core:import_list' %}">IMPORTAR EXCEL</a>{% endif %}
     {% if user|can:"payments.create" %}<a class="btn btn-accent" href="{% url 'core:payment_create' %}">REGISTRAR PAGO</a>{% endif %}
     {% if user|can:"operations.create" %}<a class="btn btn-primary" href="{% url 'core:operation_create' %}">Nueva operación</a>{% endif %}
   </div>

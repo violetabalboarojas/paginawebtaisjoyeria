@@ -3,7 +3,7 @@ from .models import SystemSettings
 SECTIONS = {
     "": "dashboard", "alertas": "alerts", "bonistas": "investors", "clientes": "clients", "operaciones": "operations",
     "pagos": "payments", "penalidades": "penalties", "fideicomisos": "trusts", "documentos": "documents",
-    "reportes": "reports", "configuracion": "settings", "auditoria": "audit", "cuenta": "users", "buscar": "search",
+    "reportes": "reports", "configuracion": "settings", "auditoria": "audit", "cuenta": "users", "buscar": "search", "importar": "imports",
 }
 
 

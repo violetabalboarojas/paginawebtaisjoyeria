@@ -14,7 +14,8 @@ USER = settings.AUTH_USER_MODEL
 # --------------------------------------------------------------------------------------
 CURRENCIES = [("PEN", "Soles (PEN)"), ("USD", "Dólares (USD)")]
 CURRENCY_SYMBOL = {"PEN": "S/", "USD": "US$"}
-DOC_TYPES = [("DNI", "DNI"), ("CE", "Carné de extranjería"), ("RUC", "RUC"), ("PAS", "Pasaporte")]
+DOC_TYPES = [("DNI", "DNI"), ("CE", "Carné de extranjería"), ("RUC", "RUC"), ("PAS", "Pasaporte"),
+             ("SD", "Pendiente de registrar")]
 
 RATE_TYPES = [
     ("TEA", "Tasa efectiva anual (TEA)"),
@@ -50,6 +51,7 @@ PENALTY_TYPES = [
     ("DAILY_PERCENT", "Porcentaje diario sobre lo vencido"),
     ("DAILY_FIXED", "Monto fijo por día de atraso"),
     ("MORATORY", "Tasa moratoria anual (interés simple)"),
+    ("IMC", "IMC: moratorio + compensatorio a tasa máxima (compuesto)"),
 ]
 PENALTY_BASES = [
     ("INSTALLMENT", "Cuota vencida (capital + interés)"),
@@ -68,7 +70,7 @@ class OpStatus(models.TextChoices):
     AL_DIA = "AL_DIA", "Al día"
     POR_VENCER = "POR_VENCER", "Por vencer"
     VENCIDA = "VENCIDA", "Vencida"
-    EN_MORA = "EN_MORA", "En mora"
+    EN_MORA = "EN_MORA", "En mora crítica"
     CANCELADA = "CANCELADA", "Cancelada"
     REESTRUCTURADA = "REESTRUCTURADA", "Reestructurada"
 
@@ -77,7 +79,7 @@ class InstStatus(models.TextChoices):
     PENDIENTE = "PENDIENTE", "Pendiente"
     PAGADO = "PAGADO", "Pagado"
     PAGO_PARCIAL = "PAGO_PARCIAL", "Pago parcial"
-    VENCIDO = "VENCIDO", "Vencido"
+    VENCIDO = "VENCIDO", "Vencida"
 
 
 class TimeStamped(models.Model):
@@ -111,6 +113,11 @@ class SystemSettings(models.Model):
         help_text="Códigos separados por coma.",
     )
     operation_prefix = models.CharField("Prefijo de operaciones", max_length=5, default="OP")
+    max_rate_pen = models.DecimalField("Tasa máxima BCRP soles (% anual)", max_digits=8, decimal_places=4, default=Decimal("0"),
+                                       help_text="Interés compensatorio/moratorio máximo publicado por el BCRP. Se usa en penalidades tipo IMC.")
+    max_rate_usd = models.DecimalField("Tasa máxima BCRP dólares (% anual)", max_digits=8, decimal_places=4, default=Decimal("0"))
+    income_tax_withholding = models.DecimalField("Retención de IR a bonistas (%)", max_digits=5, decimal_places=2, default=Decimal("4.99"),
+                                                 help_text="Se aplica sobre intereses e IMC en la distribución a bonistas.")
     last_refresh = models.DateField(null=True, blank=True, editable=False)
 
     class Meta:
@@ -227,7 +234,7 @@ class Client(TimeStamped):
 # Operaciones
 # --------------------------------------------------------------------------------------
 ECONOMIC_FIELDS = [
-    "principal", "currency", "disbursement_date", "start_date", "term_months", "rate_type", "rate_value",
+    "principal", "units", "currency", "disbursement_date", "start_date", "term_months", "rate_type", "rate_value",
     "interest_method", "day_base", "day_count", "capitalizations_per_year", "periodicity", "amortization",
     "payment_day", "grace_periods", "grace_type", "penalty_type", "penalty_value", "penalty_base",
     "penalty_grace_days",
@@ -269,6 +276,13 @@ class Operation(TimeStamped):
     penalty_grace_days = models.PositiveSmallIntegerField("Días de tolerancia", default=0)
 
     status = models.CharField("Estado", max_length=15, choices=OpStatus.choices, default=OpStatus.ACTIVA, db_index=True)
+    series = models.CharField("Emisión / serie", max_length=120, blank=True)
+    units = models.PositiveIntegerField("Cantidad de bonos", default=1, help_text="El interés se redondea por bono.")
+    nominal_value = models.DecimalField("Valor nominal por bono", max_digits=14, decimal_places=2, null=True, blank=True)
+    source = models.CharField("Origen", max_length=8, choices=[("MANUAL", "Registro manual"), ("IMPORT", "Importado de Excel")],
+                              default="MANUAL", editable=False)
+    external_ref = models.CharField("Referencia externa", max_length=250, null=True, blank=True, unique=True, editable=False)
+    import_batch = models.ForeignKey("ImportBatch", null=True, blank=True, on_delete=models.PROTECT, related_name="operations", editable=False)
     closed_manually = models.BooleanField(default=False, editable=False)
     close_reason = models.TextField("Motivo de cierre", blank=True, editable=False)
     purpose = models.CharField("Destino del crédito", max_length=200, blank=True)
@@ -310,6 +324,7 @@ class PaymentSchedule(models.Model):
     operation = models.ForeignKey(Operation, on_delete=models.PROTECT, related_name="schedule")
     version = models.PositiveSmallIntegerField(default=1)
     number = models.PositiveSmallIntegerField("N° cuota")
+    label = models.CharField("Periodo", max_length=20, blank=True, help_text="Etiqueta original (p. ej. PREPAGO).")
     period_start = models.DateField("Inicio del periodo")
     due_date = models.DateField("Fecha de vencimiento")
     days = models.PositiveSmallIntegerField("Días del periodo")
@@ -361,7 +376,7 @@ class PaymentSchedule(models.Model):
 class Payment(models.Model):
     VALID, VOID = "VALIDO", "ANULADO"
     STATUS = [(VALID, "Válido"), (VOID, "Anulado")]
-    CONCEPTS = [("CUOTA", "Pago de cuota"), ("PREPAGO", "Pago adelantado"), ("CANCELACION", "Cancelación total"),
+    CONCEPTS = [("IMPORTADO", "Importado del Excel"), ("CUOTA", "Pago de cuota"), ("PREPAGO", "Pago adelantado"), ("CANCELACION", "Cancelación total"),
                 ("PENALIDAD", "Pago de penalidad"), ("OTRO", "Otro")]
     METHODS = [("TRANSFERENCIA", "Transferencia"), ("DEPOSITO", "Depósito en cuenta"), ("EFECTIVO", "Efectivo"),
                ("CHEQUE", "Cheque"), ("BILLETERA", "Yape / Plin"), ("OTRO", "Otro")]
@@ -523,6 +538,8 @@ class Trust(TimeStamped):
     effective_date = models.DateField("Fecha de vigencia", null=True, blank=True)
     expiry_date = models.DateField("Fecha de vencimiento", null=True, blank=True)
     operations = models.ManyToManyField(Operation, blank=True, related_name="trusts", db_table="trust_operations", verbose_name="Operaciones")
+    admin_fee = models.DecimalField("Comisión administrativa por periodo", max_digits=12, decimal_places=2, default=Decimal("0"),
+                                    help_text="Se suma al total a pagar del cronograma consolidado.")
     notes = models.TextField("Observaciones", blank=True)
 
     class Meta:
@@ -577,3 +594,48 @@ class Document(models.Model):
 
     def delete(self, *args, **kwargs):
         raise PermissionError("Los documentos no se eliminan: se anulan.")
+
+
+# --------------------------------------------------------------------------------------
+# Bonistas por operación e importaciones
+# --------------------------------------------------------------------------------------
+class BondHolding(models.Model):
+    """Participación de cada bonista en una operación (serie)."""
+
+    operation = models.ForeignKey(Operation, on_delete=models.PROTECT, related_name="holdings")
+    investor = models.ForeignKey(Investor, on_delete=models.PROTECT, related_name="holdings", verbose_name="Bonista")
+    units = models.PositiveIntegerField("Bonos", default=0)
+    percentage = models.DecimalField("Participación", max_digits=9, decimal_places=6, help_text="Fracción: 0.777778 = 77.78 %")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "bond_holdings"
+        constraints = [models.UniqueConstraint(fields=["operation", "investor"], name="uniq_holding")]
+        ordering = ["-percentage"]
+
+    def __str__(self):
+        return f"{self.investor} · {self.operation} · {self.percentage * 100:.2f}%"
+
+
+class ImportBatch(models.Model):
+    STATUS = [("PREVIEW", "En revisión"), ("CONFIRMED", "Importado"), ("DISCARDED", "Descartado")]
+    original_name = models.CharField("Archivo", max_length=255)
+    file = models.FileField(upload_to="importaciones/%Y/%m/")
+    sha256 = models.CharField(max_length=64, db_index=True)
+    status = models.CharField("Estado", max_length=10, choices=STATUS, default="PREVIEW")
+    parsed = models.JSONField("Datos leídos", default=dict)
+    result = models.JSONField("Resultado", default=dict, blank=True)
+    uploaded_by = models.ForeignKey(USER, on_delete=models.PROTECT, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    confirmed_by = models.ForeignKey(USER, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = "import_batches"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Importación {self.pk} · {self.original_name}"
+
+    def delete(self, *args, **kwargs):
+        raise PermissionError("Las importaciones se conservan para auditoría.")

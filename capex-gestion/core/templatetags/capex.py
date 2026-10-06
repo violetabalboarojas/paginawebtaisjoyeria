@@ -56,8 +56,8 @@ SEMAFORO = {
     # estado: (color, etiqueta del semáforo)
     "AL_DIA": ("green", "Al día"), "ACTIVA": ("green", "Activa"), "PAGADO": ("green", "Pagado"),
     "POR_VENCER": ("yellow", "Por vencer"), "PAGO_PARCIAL": ("yellow", "Pago parcial"), "PENDIENTE": ("gray", "Pendiente"),
-    "VENCIDA": ("red", "Vencida"), "VENCIDO": ("red", "Vencido"), "EN_MORA": ("red", "En mora"),
-    "CANCELADA": ("black", "Cancelada"), "REESTRUCTURADA": ("violet", "Reestructurada"),
+    "VENCIDA": ("red", "Vencida"), "VENCIDO": ("red", "Vencida"), "EN_MORA": ("black", "En mora crítica"),
+    "CANCELADA": ("gray", "Cancelada"), "REESTRUCTURADA": ("violet", "Reestructurada"),
     "VIGENTE": ("yellow", "Vigente"), "PAGADA": ("green", "Pagada"), "CONDONADA": ("gray", "Condonada"), "SIN_EFECTO": ("gray", "Sin efecto"),
     "VALIDO": ("green", "Válido"), "ANULADO": ("black", "Anulado"),
     "INSCRITA": ("green", "Inscrita"), "PENDIENTE_INS": ("yellow", "Pendiente"), "EN_TRAMITE": ("yellow", "En trámite"),
@@ -130,3 +130,35 @@ def split_pairs(value):
 @register.filter
 def split(value, sep=" "):
     return value.split(sep)
+
+
+@register.filter
+def dmy(value):
+    """'2026-08-24' → '24/08/2026' (fechas guardadas como texto ISO)."""
+    s = str(value or "")
+    return f"{s[8:10]}/{s[5:7]}/{s[:4]}" if len(s) >= 10 and s[4] == "-" else (s or "–")
+
+
+@register.filter
+def frac_pct(value, places=2):
+    """Fracción → porcentaje: 0.777778 → 77.78%"""
+    try:
+        return f"{Decimal(value) * 100:.{int(places)}f}%"
+    except (InvalidOperation, TypeError):
+        return "–"
+
+
+@register.filter
+def mul(a, b):
+    try:
+        return Decimal(a) * Decimal(b)
+    except (InvalidOperation, TypeError):
+        return None
+
+
+@register.filter
+def add_dec(a, b):
+    try:
+        return Decimal(a) + Decimal(b)
+    except (InvalidOperation, TypeError):
+        return None

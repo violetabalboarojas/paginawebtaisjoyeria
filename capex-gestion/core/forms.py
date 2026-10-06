@@ -39,6 +39,12 @@ class StyledModelForm(StyledMixin, forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._style()
+        if "units" in self.fields:  # cantidad de bonos: opcional, 1 por defecto
+            self.fields["units"].required = False
+            self.fields["units"].help_text = "Opcional. Con bonos, el interés se redondea por bono."
+
+    def clean_units(self):
+        return self.cleaned_data.get("units") or 1
 
 
 class StyledForm(StyledMixin, forms.Form):
@@ -90,7 +96,7 @@ class ClientForm(StyledModelForm):
 
 
 # ----------------------------------------------------------------------------------- operaciones
-TERMS_FIELDS = ["principal", "currency", "disbursement_date", "start_date", "term_months", "rate_type", "rate_value",
+TERMS_FIELDS = ["principal", "units", "currency", "disbursement_date", "start_date", "term_months", "rate_type", "rate_value",
                 "interest_method", "day_base", "day_count", "capitalizations_per_year", "periodicity", "amortization",
                 "payment_day", "grace_periods", "grace_type", "penalty_type", "penalty_value", "penalty_base",
                 "penalty_grace_days"]
@@ -98,11 +104,11 @@ TERMS_FIELDS = ["principal", "currency", "disbursement_date", "start_date", "ter
 
 OPERATION_GROUPS = [
     ("Partes", ["investor", "client", "advisor", "profile"]),
-    ("Capital y fechas", ["principal", "currency", "disbursement_date", "start_date", "term_months", "payment_day"]),
+    ("Capital y fechas", ["principal", "currency", "units", "nominal_value", "disbursement_date", "start_date", "term_months", "payment_day"]),
     ("Tasa e interés", ["rate_type", "rate_value", "interest_method", "day_base", "day_count", "capitalizations_per_year"]),
     ("Cuotas", ["periodicity", "amortization", "grace_periods", "grace_type"]),
     ("Penalidad por atraso", ["penalty_type", "penalty_value", "penalty_base", "penalty_grace_days"]),
-    ("Otros", ["capitalize_arrears", "purpose", "notes", "reason"]),
+    ("Otros", ["series", "capitalize_arrears", "purpose", "notes", "reason"]),
 ]
 
 
@@ -112,7 +118,7 @@ class OperationForm(StyledModelForm):
 
     class Meta:
         model = Operation
-        fields = ["investor", "client", "advisor", "profile"] + TERMS_FIELDS + ["purpose", "notes"]
+        fields = ["investor", "client", "advisor", "profile"] + TERMS_FIELDS + ["nominal_value", "series", "purpose", "notes"]
         widgets = {"disbursement_date": DateInput(), "start_date": DateInput()}
         help_texts = {
             "penalty_value": "Porcentaje (ej. 0.1 = 0.1%) o monto según el tipo de penalidad.",
@@ -212,7 +218,7 @@ class TrustForm(StyledModelForm):
     class Meta:
         model = Trust
         fields = ["fiduciary_entity", "code", "constitution_date", "trust_estate", "settlor", "trustee", "beneficiary",
-                  "contributed_assets", "status", "effective_date", "expiry_date", "operations", "notes"]
+                  "contributed_assets", "admin_fee", "status", "effective_date", "expiry_date", "operations", "notes"]
         widgets = {"constitution_date": DateInput(), "effective_date": DateInput(), "expiry_date": DateInput(),
                    "operations": forms.SelectMultiple(attrs={"size": 6})}
 
@@ -240,6 +246,7 @@ class PaymentForm(StyledModelForm):
         qs = operations if operations is not None else Operation.objects.all()
         self.fields["operation"].queryset = qs.exclude(status__in=[OpStatus.CANCELADA, OpStatus.REESTRUCTURADA]).select_related("client")
         self.fields["operation"].label_from_instance = lambda o: f"{o.code} · {o.client} · {o.currency}"
+        self.fields["concept"].choices = [c for c in Payment.CONCEPTS if c[0] != "IMPORTADO"]
         for f in ("capital", "interest", "penalty"):
             self.fields[f].required = False
         if not self.is_bound:

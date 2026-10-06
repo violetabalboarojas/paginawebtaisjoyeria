@@ -116,6 +116,8 @@ ACTION_BY_FIELD = {
 @transaction.atomic
 def update_operation_terms(op, before, user, reason):
     """Solo permitido sin pagos válidos. Crea una nueva versión del cronograma y conserva la anterior."""
+    if op.source == "IMPORT":
+        raise BusinessError("El cronograma importado del Excel no se regenera: use REESTRUCTURAR.")
     if Payment.objects.filter(operation=op, status=Payment.VALID).exists():
         raise BusinessError("La operación tiene pagos registrados: sus condiciones históricas no se modifican. Use REESTRUCTURAR.")
     if op.penalties.exists():

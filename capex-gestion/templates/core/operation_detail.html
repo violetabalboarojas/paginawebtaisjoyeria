@@ -5,6 +5,7 @@
   <div>
     <span class="eyebrow">Operación · {{ op.get_currency_display }}</span>
     <h1>{{ op.code }} {% chip op.status %}</h1>
+    {% if op.series %}<p><b>{{ op.series }}</b>{% if op.source == "IMPORT" %} · <span class="chip chip-gray"><i></i>Importado de Excel</span>{% endif %}</p>{% endif %}
     <p class="muted">Cliente <a href="{{ op.client.get_absolute_url }}">{{ op.client }}</a> · Bonista {% if user|can:"investors.view" %}<a href="{{ op.investor.get_absolute_url }}">{{ op.investor }}</a>{% else %}{{ op.investor }}{% endif %}{% if op.advisor %} · Asesor {{ op.advisor }}{% endif %}</p>
     {% if op.restructured_from %}<p class="muted">Reestructura de <a href="{{ op.restructured_from.get_absolute_url }}">{{ op.restructured_from.code }}</a></p>{% endif %}
     {% for r in restructurings %}<p class="muted">Reestructurada en <a href="{{ r.get_absolute_url }}">{{ r.code }}</a></p>{% endfor %}
@@ -15,7 +16,7 @@
     {% if user|can:"reports.view" %}<a class="btn btn-primary" href="{% url 'core:statement' op.pk %}">Estado de cuenta</a>{% endif %}
     {% if user|can:"operations.edit" or user|can:"operations.create" %}<a class="btn" href="{% url 'core:operation_edit_info' op.pk %}">Editar datos</a>{% endif %}
     {% if user|can:"operations.edit" and not op.is_closed %}
-      {% if not has_payments and not penalties %}<a class="btn" href="{% url 'core:operation_edit_terms' op.pk %}">Modificar condiciones</a>{% endif %}
+      {% if not has_payments and not penalties and op.source != "IMPORT" %}<a class="btn" href="{% url 'core:operation_edit_terms' op.pk %}">Modificar condiciones</a>{% endif %}
       <a class="btn" href="{% url 'core:operation_restructure' op.pk %}">Reestructurar</a>
     {% endif %}
     {% if user|can:"operations.status" %}
@@ -35,7 +36,7 @@
 </section>
 
 <nav class="tabs">
-  {% for key, label in "resumen:Resumen,cronograma:Cronograma,pagos:Pagos,penalidades:Penalidades,garantia:Garantía,fideicomiso:Fideicomiso,documentos:Documentos,historial:Historial"|split_pairs %}
+  {% for key, label in "resumen:Resumen,cronograma:Cronograma,bonistas:Bonistas,pagos:Pagos,penalidades:Penalidades,garantia:Garantía,fideicomiso:Fideicomiso,documentos:Documentos,historial:Historial"|split_pairs %}
   <a href="?tab={{ key }}" class="{% if tab == key %}active{% endif %}">{{ label }}</a>
   {% endfor %}
 </nav>
@@ -44,7 +45,7 @@
 <div class="grid-2">
   <div class="card"><header><h2>Condiciones económicas</h2><small>Fijadas al registrar; no cambian con la configuración.</small></header>
     <dl class="dl">
-      <dt>Capital entregado</dt><dd>{{ op.principal|money:cur }}</dd>
+      <dt>Capital entregado</dt><dd>{{ op.principal|money:cur }}{% if op.units > 1 %} · {{ op.units }} bonos{% if op.nominal_value %} de {{ op.nominal_value|money:cur }}{% endif %}{% endif %}</dd>
       <dt>Desembolso / inicio</dt><dd>{{ op.disbursement_date|date:"d/m/Y" }} / {{ op.start_date|date:"d/m/Y" }}</dd>
       <dt>Vencimiento</dt><dd>{{ op.maturity_date|date:"d/m/Y" }} ({{ op.term_months }} meses)</dd>
       <dt>Tasa</dt><dd>{{ op.get_rate_type_display }} {{ op.rate_value|num:4 }}%</dd>
@@ -84,13 +85,31 @@
   <thead><tr><th>N°</th><th>Vencimiento</th><th class="num">Capital</th><th class="num">Interés</th><th class="num">Penalidad</th><th class="num">Total esperado</th><th class="num">Monto pagado</th><th class="num">Saldo</th><th>Fecha de pago</th><th class="num">Días atraso</th><th>Estado</th></tr></thead>
   <tbody>{% for r in rows %}
     <tr class="{% if r.status == 'VENCIDO' %}row-red{% elif r.status == 'PAGO_PARCIAL' %}row-yellow{% endif %}">
-      <td>{{ r.number }}</td><td class="nowrap">{{ r.due_date|date:"d/m/Y" }}</td><td class="num">{{ r.capital|num }}</td>
+      <td><b>{{ r.label|default:r.number }}</b></td><td class="nowrap">{{ r.due_date|date:"d/m/Y" }}</td><td class="num">{{ r.capital|num }}</td>
       <td class="num">{{ r.interest|num }}{% if r.capitalized_interest %}<br><small>cap. {{ r.capitalized_interest|num }}</small>{% endif %}</td>
       <td class="num">{{ r.penalty_amount|num }}</td><td class="num"><b>{{ r.expected_total|num }}</b></td><td class="num">{{ r.paid_total|num }}{% if r.waived_interest %}<br><small>desc. {{ r.waived_interest|num }}</small>{% endif %}</td>
       <td class="num">{{ r.balance|num }}</td><td class="nowrap">{{ r.payment_date|date:"d/m/Y"|default:"–" }}</td><td class="num">{{ r.days_late|default:"–" }}</td><td>{% chip r.status %}</td>
     </tr>{% endfor %}</tbody>
 </table></div>
 <p class="muted">Versión {{ op.schedule_version }} del cronograma. Saldo = total esperado − pagado. La penalidad se recalcula a diario mientras la cuota esté vencida.</p>
+
+{% elif tab == "bonistas" %}
+<div class="grid-main">
+  <div class="card"><header><h2>Distribución de la cuota {{ dist_row.label|default:dist_row.number }}</h2>{% chip dist_row.status %}</header>
+    <form class="filters" style="margin-bottom:10px"><input type="hidden" name="tab" value="bonistas">
+      <div class="field"><label for="cq">Cuota</label><select id="cq" name="cuota" onchange="this.form.submit()">{% for r in rows %}<option value="{{ r.number }}" {% if r.number == dist_row.number %}selected{% endif %}>{{ r.label|default:r.number }} · {{ r.due_date|date:"d/m/Y" }} · {{ r.get_status_display }}</option>{% endfor %}</select></div></form>
+    <div class="table-wrap" style="border:0"><table>
+      <thead><tr><th>Bonista</th><th class="num">%</th><th class="num">Amortización</th><th class="num">Interés</th><th class="num">IMC</th><th class="num">Total</th><th class="num">Retención IR</th><th class="num">Pago neto</th></tr></thead>
+      <tbody>{% for d in dist %}<tr><td>{% if d.holder.investor.pk %}<a href="{{ d.holder.investor.get_absolute_url }}">{{ d.holder.investor }}</a>{% else %}{{ d.holder.investor }}{% endif %}</td><td class="num">{{ d.pct|num:2 }}</td><td class="num">{{ d.amort|num }}</td><td class="num">{{ d.interest|num }}</td><td class="num">{{ d.imc|num }}</td><td class="num">{{ d.total|num }}</td><td class="num">{{ d.withholding|num }}</td><td class="num"><b>{{ d.net|num }}</b></td></tr>{% endfor %}</tbody>
+      <tfoot><tr><td colspan="2">Total</td><td class="num">{{ dist_tot.amort|num }}</td><td class="num">{{ dist_tot.interest|num }}</td><td class="num">{{ dist_tot.imc|num }}</td><td class="num">{{ dist_tot.total|num }}</td><td class="num">{{ dist_tot.withholding|num }}</td><td class="num">{{ dist_tot.net|num }}</td></tr></tfoot>
+    </table></div>
+    <p class="muted" style="margin-top:8px">Retención de IR = {{ company.income_tax_withholding }}% × (interés + IMC). IMC = penalidad vigente de la cuota.</p>
+  </div>
+  <div class="card"><header><h2>Bonistas de la operación</h2></header>
+    {% if holdings %}<table><tbody>{% for h in holdings %}<tr><td><a href="{{ h.investor.get_absolute_url }}">{{ h.investor }}</a>{% if h.investor.doc_type == "SD" %}<br><small class="muted">Falta DNI/RUC</small>{% endif %}</td><td class="num">{{ h.units }} bonos</td><td class="num">{{ h.percentage|frac_pct }}</td></tr>{% endfor %}</tbody></table>
+    {% else %}<p class="muted">Sin participación registrada: el 100 % corresponde a {{ op.investor }}.</p>{% endif %}
+  </div>
+</div>
 
 {% elif tab == "pagos" %}
 <div class="table-wrap"><table>

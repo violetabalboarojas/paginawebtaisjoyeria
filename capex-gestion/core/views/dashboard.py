@@ -5,7 +5,7 @@ from django.shortcuts import render
 
 from accounts.permissions import require
 
-from ..models import CURRENCIES, Client, Investor, InstStatus, Operation, PaymentSchedule, Property, SystemSettings, Trust
+from ..models import CURRENCIES, Investor, InstStatus, PaymentSchedule, Property, SystemSettings, Trust
 from ..services.analytics import CLOSED, compute_alerts, kpis, monthly_series
 from ..services.portfolio import refresh_portfolio, today
 from .common import scoped_clients, scoped_operations
@@ -34,6 +34,8 @@ def dashboard(request):
         "alerts_total": len(alerts), "alerts_red": sum(1 for a in alerts if a["level"] == "red"),
         "currency": currency, "currencies": CURRENCIES, "currencies_in_use": currencies_in_use,
         "next_rows": next_rows, "as_of": as_of, "cfg": cfg,
+        "status_data": {"ops": [counts.get(k, 0) for k in ("AL_DIA", "POR_VENCER", "VENCIDA", "EN_MORA", "CANCELADA")],
+                        "inst": [counts.get(k, 0) for k in ("inst_paid", "inst_overdue", "inst_pending")]},
     })
 
 

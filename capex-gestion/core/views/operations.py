@@ -115,7 +115,16 @@ def operation_detail(request, pk):
         "logs": AuditLog.objects.filter(module__in=["Operaciones", "Pagos", "Penalidades"],
                                         record_label__icontains=op.code)[:15] if request.user.can("audit.view") else [],
         "tab": request.GET.get("tab", "resumen"),
+        "holdings": op.holdings.select_related("investor"),
     }
+    if ctx["tab"] == "bonistas":
+        from ..services.importer import holder_distribution
+        pick = request.GET.get("cuota")
+        row = next((r for r in rows if str(r.number) == pick), None) or next((r for r in rows if r.status != "PAGADO"), rows[-1] if rows else None)
+        if row:
+            dist = holder_distribution(op, row)
+            ctx.update({"dist_row": row, "dist": dist,
+                        "dist_tot": {k: sum((d[k] for d in dist), 0) for k in ("amort", "interest", "imc", "total", "withholding", "net")}})
     return render(request, "core/operation_detail.html", ctx)
 
 
@@ -137,6 +146,9 @@ def operation_edit_info(request, pk):
 @require("operations.edit")
 def operation_edit_terms(request, pk):
     op = _get_op(request, pk)
+    if op.source == "IMPORT":
+        messages.error(request, "El cronograma de esta operación se importó del Excel con fechas propias: use Reestructurar para cambiar condiciones.")
+        return redirect(op)
     if op.has_payments() or op.penalties.exists():
         messages.error(request, "La operación ya tiene pagos o penalidades: sus condiciones históricas no se modifican. Use Reestructurar.")
         return redirect(op)

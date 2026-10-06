@@ -49,10 +49,14 @@ def kpis(ops, as_of=None, cfg=None):
         k["total_due"] += s["total_due"]
         k["overdue"] += s["overdue_amount"]
         counts[op.status] += 1
+        counts["inst_paid"] = counts.get("inst_paid", 0) + sum(1 for r in op._rows if r.status == InstStatus.PAGADO)
         if op.status not in CLOSED:
             counts["active"] += 1
             upcoming += sum(1 for r in op._rows if r.status != InstStatus.PAGADO
                             and as_of <= r.due_date <= as_of + datetime.timedelta(days=cfg.alert_days))
+            counts["inst_overdue"] = counts.get("inst_overdue", 0) + sum(1 for r in op._rows if r.status == InstStatus.VENCIDO)
+            counts["inst_pending"] = counts.get("inst_pending", 0) + sum(
+                1 for r in op._rows if r.status in (InstStatus.PENDIENTE, InstStatus.PAGO_PARCIAL))
             if op.days_late > 0:
                 k["capital_late"] += s["capital_pending"]
     k["morosidad"] = (k["capital_late"] / k["capital_pending"] * 100).quantize(Decimal("0.01")) if k["capital_pending"] else ZERO
@@ -186,7 +190,11 @@ def compute_alerts(ops, as_of=None, cfg=None):
     for op_id, t in Document.objects.filter(operation__in=active, is_void=False).values_list("operation_id", "doc_type"):
         doc_types[op_id].add(t)
     labels = dict(Document._meta.get_field("doc_type").choices)
-    for op in active.prefetch_related("mortgages__property", "trusts"):
+    for op in active.prefetch_related("mortgages__property", "trusts", "holdings__investor"):
+        for h in op.holdings.all():
+            if h.investor.doc_type == "SD":
+                add("yellow", "Documentación pendiente", f"{op.code}: el bonista {h.investor} no tiene DNI/RUC registrado", op,
+                    url=reverse("core:investor_detail", args=[h.investor_id]))
         if op.maturity_date < as_of:
             add("red", "Operación vencida", f"{op.code} ({op.client}) venció el {op.maturity_date:%d/%m/%Y}", op, op.maturity_date)
         elif op.maturity_date <= mat_horizon:

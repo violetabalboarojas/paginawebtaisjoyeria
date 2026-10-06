@@ -16,6 +16,7 @@
         <dt>Fiduciario</dt><dd>{{ t.trustee }}</dd><dt>Fideicomisario / beneficiario</dt><dd>{{ t.beneficiary }}</dd>
         <dt>Bienes aportados</dt><dd>{{ t.contributed_assets|linebreaksbr }}</dd>
         <dt>Vigencia</dt><dd>{{ t.effective_date|date:"d/m/Y"|default:"–" }}</dd><dt>Vencimiento</dt><dd>{{ t.expiry_date|date:"d/m/Y"|default:"–" }}</dd>
+        <dt>Comisión administrativa</dt><dd>{{ t.admin_fee|num }} por periodo</dd>
         <dt>Observaciones</dt><dd>{{ t.notes|default:"–"|linebreaksbr }}</dd>
       </dl>
     </div>
@@ -27,4 +28,13 @@
   </div>
   {% include "core/_docs.html" with docs=docs %}
 </div>
+{% if consolidated %}{% with c=consolidated %}
+<div class="card"><header><h2>Cronograma consolidado</h2><small class="muted">Suma de las series + comisión administrativa</small></header>
+  <div class="table-wrap" style="border:0"><table>
+    <thead><tr><th>Periodo</th><th>Fecha</th><th class="num">Principal</th><th class="num">Amortización</th><th class="num">Interés</th><th class="num">Cuota</th><th class="num">Com. Adm.</th><th class="num">IMC</th><th class="num">Total a pagar</th><th>Estado</th></tr></thead>
+    <tbody>{% for g in c.rows %}<tr class="{% if g.status == 'VENCIDO' %}row-red{% endif %}"><td><b>{{ g.label }}</b></td><td class="nowrap">{{ g.date|date:"d/m/Y" }}</td><td class="num">{{ g.opening|num }}</td><td class="num">{{ g.amort|num }}</td><td class="num">{{ g.interest|num }}</td><td class="num">{{ g.cuota|num }}</td><td class="num">{{ g.fee|num }}</td><td class="num">{{ g.penalty|num }}</td><td class="num"><b>{{ g.total|num }}</b></td><td>{% chip g.status %}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><td colspan="3">Totales {{ c.currency }}</td><td class="num">{{ c.tot.amort|num }}</td><td class="num">{{ c.tot.interest|num }}</td><td class="num">{{ c.tot.cuota|num }}</td><td class="num">{{ c.tot.fee|num }}</td><td class="num">{{ c.tot.penalty|num }}</td><td class="num">{{ c.tot.total|num }}</td><td></td></tr></tfoot>
+  </table></div>
+</div>
+{% endwith %}{% endif %}
 {% endblock %}
