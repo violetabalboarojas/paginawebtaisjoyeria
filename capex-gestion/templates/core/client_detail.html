@@ -1,0 +1,41 @@
+{% extends "base.html" %}{% load capex %}{% block title %}{{ c.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Cliente · {{ c.code }}</span><h1>{{ c.full_name }}</h1></div>
+  <div class="actions">
+    {% if user|can:"operations.create" %}<a class="btn btn-primary" href="{% url 'core:operation_create' %}?cliente={{ c.pk }}">Nueva operación</a>{% endif %}
+    {% if user|can:"documents.upload" %}<a class="btn" href="{% url 'core:document_upload' %}?cliente={{ c.pk }}">Cargar documento</a>{% endif %}
+    {% if user|can:"clients.edit" %}<a class="btn" href="{% url 'core:client_edit' c.pk %}">Editar</a>{% endif %}
+  </div>
+</div>
+<div class="grid-main">
+  <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div class="card"><header><h2>Operaciones</h2>{% chip c.status %}</header>
+      <div class="table-wrap" style="border:0"><table>
+        <thead><tr><th>Código</th><th>Inversionista</th><th>Vence</th><th class="num">Capital</th><th class="num">Pendiente</th><th class="num">Atraso</th><th>Estado</th></tr></thead>
+        <tbody>{% for o in ops %}
+          <tr><td><a href="{{ o.get_absolute_url }}"><b>{{ o.code }}</b></a></td><td>{{ o.investor }}</td><td>{{ o.maturity_date|date:"d/m/Y" }}</td>
+            <td class="num">{{ o.principal|money:o.currency }}</td><td class="num">{{ o.capital_pending|money:o.currency }}</td><td class="num">{{ o.days_late }} d</td><td>{% chip o.status %}</td></tr>
+        {% empty %}<tr><td colspan="7" class="muted">Sin operaciones.</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </div>
+    {% if payments %}<div class="card"><header><h2>Últimos pagos</h2></header>
+      <div class="table-wrap" style="border:0"><table><tbody>{% for p in payments %}
+        <tr class="{% if p.is_void %}is-void{% endif %}"><td><a href="{% url 'core:payment_detail' p.pk %}">{{ p.code }}</a></td><td>{{ p.operation.code }}</td><td>{{ p.payment_date|date:"d/m/Y" }}</td><td class="num">{{ p.amount|money:p.currency }}</td><td>{% chip p.status %}</td></tr>
+      {% endfor %}</tbody></table></div></div>{% endif %}
+  </div>
+  <div style="display:flex;flex-direction:column;gap:20px">
+    <div class="card"><header><h2>Datos</h2></header>
+      <dl class="dl">
+        <dt>Documento</dt><dd>{{ c.get_doc_type_display }} {{ c.doc_number }}</dd>
+        <dt>Teléfono</dt><dd>{{ c.phone|default:"–" }}</dd><dt>WhatsApp</dt><dd>{{ c.whatsapp|default:"–" }}</dd>
+        <dt>Correo</dt><dd>{{ c.email|default:"–" }}</dd><dt>Dirección</dt><dd>{{ c.address|default:"–" }}</dd>
+        <dt>Actividad</dt><dd>{{ c.economic_activity|default:"–" }}</dd>
+        <dt>Ingresos declarados</dt><dd>{% if c.declared_income %}{{ c.declared_income|money:c.income_currency }} / mes{% else %}–{% endif %}</dd>
+        <dt>Asesor</dt><dd>{{ c.advisor|default:"–" }}</dd><dt>Observaciones</dt><dd>{{ c.notes|default:"–"|linebreaksbr }}</dd>
+      </dl>
+    </div>
+    {% include "core/_docs.html" with docs=docs %}
+  </div>
+</div>
+{% endblock %}

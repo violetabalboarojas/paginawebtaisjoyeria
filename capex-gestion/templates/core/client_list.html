@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Clientes{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Base de datos</span><h1>Clientes / prestatarios</h1></div>
+  <div class="actions">{% if user|can:"clients.edit" %}<a class="btn btn-primary" href="{% url 'core:client_create' %}">Nuevo cliente</a>{% endif %}</div>
+</div>
+<form class="filters">
+  <div class="field"><label for="q">Buscar</label><input id="q" name="q" value="{{ q }}" placeholder="Nombre, documento, código, teléfono"></div>
+  <div class="field"><label for="estado">Estado</label><select id="estado" name="estado"><option value="">Todos</option>
+    <option value="ACTIVO" {% if request.GET.estado == "ACTIVO" %}selected{% endif %}>Activo</option><option value="OBSERVADO" {% if request.GET.estado == "OBSERVADO" %}selected{% endif %}>Observado</option><option value="INACTIVO" {% if request.GET.estado == "INACTIVO" %}selected{% endif %}>Inactivo</option></select></div>
+  <button class="btn" type="submit">Filtrar</button>
+</form>
+<div class="table-wrap"><table>
+  <thead><tr><th>Código</th><th>Cliente</th><th>Documento</th><th>Teléfono</th><th>Actividad</th><th>Asesor</th><th class="num">Operaciones</th><th class="num">Con atraso</th><th>Estado</th></tr></thead>
+  <tbody>
+  {% for c in page %}
+    <tr class="{% if c.n_late %}row-red{% endif %}"><td class="nowrap">{{ c.code }}</td><td><a href="{{ c.get_absolute_url }}"><b>{{ c.full_name }}</b></a></td><td class="nowrap">{{ c.doc_type }} {{ c.doc_number }}</td>
+      <td>{{ c.phone }}</td><td>{{ c.economic_activity|truncatechars:30 }}</td><td>{{ c.advisor|default:"–" }}</td><td class="num">{{ c.n_ops }}</td><td class="num">{{ c.n_late }}</td><td>{% chip c.status %}</td></tr>
+  {% empty %}<tr><td colspan="9" class="muted">No hay clientes registrados.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "partials/pagination.html" %}
+{% endblock %}

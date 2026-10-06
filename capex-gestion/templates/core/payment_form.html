@@ -1,0 +1,80 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Registrar pago{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Cobranza</span><h1>Registrar pago</h1></div></div>
+<div class="grid-main">
+<form method="post" enctype="multipart/form-data" id="pay-form" class="card" style="display:flex;flex-direction:column;gap:16px" novalidate>{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <fieldset><legend>Pago</legend><div class="form-grid">
+    {% for n in "operation payment_date amount currency concept method bank bank_reference receipt"|split %}{% with f=form|field:n %}{% include "partials/field.html" %}{% endwith %}{% endfor %}
+  </div></fieldset>
+  <fieldset><legend>Distribución (opcional)</legend>
+    <p class="muted" style="font-size:.85rem">Déjela en 0 para imputar automáticamente según el orden configurado ({{ company.get_allocation_order_display }}), empezando por la cuota más antigua. Si la llena, la suma debe ser igual al monto.</p>
+    <div class="form-grid">{% for n in "capital interest penalty"|split %}{% with f=form|field:n %}{% include "partials/field.html" %}{% endwith %}{% endfor %}
+      {% with f=form.notes %}{% include "partials/field.html" %}{% endwith %}</div>
+  </fieldset>
+  <div class="form-actions">
+    <button class="btn" type="button" id="simulate">Simular imputación</button>
+    <button class="btn btn-accent" type="submit">REGISTRAR PAGO</button>
+  </div>
+</form>
+<aside style="display:flex;flex-direction:column;gap:20px">
+  <div class="card" id="op-box"><header><h2>Operación</h2></header><p class="muted">Seleccione una operación para ver su saldo y el monto de cancelación total.</p></div>
+  <div class="card" id="sim-box" hidden><header><h2>Imputación simulada</h2></header><div id="sim-body"></div></div>
+</aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const form = document.getElementById("pay-form");
+  const op = document.getElementById("id_operation");
+  const date = document.getElementById("id_payment_date");
+  const box = document.getElementById("op-box");
+  const simBox = document.getElementById("sim-box");
+  const simBody = document.getElementById("sim-body");
+  const apiBase = "{% url 'core:api_operation' 0 %}".replace("/0/", "/");
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  async function loadOp() {
+    if (!op.value) return;
+    const r = await fetch(`${apiBase}${op.value}/?fecha=${date.value}`, { headers: { "X-Requested-With": "fetch" } });
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById("id_currency").value = d.currency;
+    const next = d.next.map((n) => `<li>Cuota ${n.n} · vence ${n.due.split("-").reverse().join("/")} · saldo ${esc(n.balance)}</li>`).join("");
+    box.innerHTML = `<header><h2><a href="${d.url}">${esc(d.code)}</a></h2><span class="chip chip-gray"><i></i>${esc(d.status)}</span></header>
+      <p>${esc(d.client)} · ${esc(d.currency)}</p>
+      <div class="formula" style="margin-top:10px"><b>Saldo para cancelar al ${d.date.split("-").reverse().join("/")}</b>
+        <span>Capital ${esc(d.payoff.capital)} + interés devengado ${esc(d.payoff.interest)} + penalidad ${esc(d.payoff.penalty)}</span>
+        <b>= ${esc(d.payoff.total)} ${esc(d.currency)}</b>
+        <span class="muted">Descuento de interés no devengado: ${esc(d.payoff.interest_discount)}</span>
+        <button type="button" class="btn btn-sm" id="use-payoff" style="align-self:flex-start;margin-top:6px">Usar como cancelación total</button></div>
+      ${next ? `<p style="margin-top:10px"><b>Próximas cuotas pendientes</b></p><ul style="margin:4px 0 0 18px;padding:0">${next}</ul>` : ""}`;
+    document.getElementById("use-payoff").addEventListener("click", () => {
+      document.getElementById("id_amount").value = d.payoff.total;
+      document.getElementById("id_concept").value = "CANCELACION";
+      ["capital", "interest", "penalty"].forEach((k) => (document.getElementById("id_" + k).value = "0"));
+    });
+  }
+  op.addEventListener("change", loadOp);
+  date.addEventListener("change", loadOp);
+  loadOp();
+  document.getElementById("simulate").addEventListener("click", async () => {
+    const fd = new FormData(form);
+    fd.delete("receipt");
+    const r = await fetch("{% url 'core:payment_simulate' %}", { method: "POST", body: fd });
+    const d = await r.json();
+    simBox.hidden = false;
+    if (!d.ok) {
+      simBody.innerHTML = `<div class="form-errors">${Object.values(d.errors).flat().map(esc).join("<br>")}</div>`;
+      return;
+    }
+    const rows = d.allocations.map((a) => `<tr><td>${a.n}</td><td>${esc(a.due)}</td><td>${esc(a.component)}</td><td class="num">${esc(a.amount)}</td></tr>`).join("");
+    const pens = d.penalties.map((p) => `<li>Cuota ${p.n}: <code>${esc(p.formula)}</code></li>`).join("");
+    simBody.innerHTML = `<table><thead><tr><th>Cuota</th><th>Vence</th><th>Concepto</th><th class="num">Monto</th></tr></thead><tbody>${rows}</tbody></table>
+      <p style="margin-top:10px">Estado resultante: <b>${esc(d.after.status)}</b> · capital pendiente ${esc(d.after.capital_pending)}</p>
+      ${pens ? `<div class="formula" style="margin-top:10px"><b>Penalidad calculada a la fecha de pago</b><ul style="margin:0;padding:0">${pens}</ul></div>` : ""}
+      <p class="muted" style="margin-top:8px">Simulación: aún no se guardó nada.</p>`;
+  });
+})();
+</script>
+{% endblock %}

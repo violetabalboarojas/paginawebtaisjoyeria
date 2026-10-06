@@ -1,0 +1,30 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Fideicomiso {{ t.code }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Fideicomiso · {{ t.fiduciary_entity }}</span><h1>{{ t.code }} {% chip t.status t.get_status_display %}</h1></div>
+  <div class="actions">
+    {% if user|can:"documents.upload" %}<a class="btn" href="{% url 'core:document_upload' %}?fideicomiso={{ t.pk }}">Cargar documento</a>{% endif %}
+    {% if user|can:"trusts.edit" %}<a class="btn" href="{% url 'core:trust_edit' t.pk %}">Editar</a>{% endif %}
+  </div>
+</div>
+<div class="grid-main">
+  <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div class="card"><header><h2>Datos del fideicomiso</h2></header>
+      <dl class="dl">
+        <dt>Entidad fiduciaria</dt><dd>{{ t.fiduciary_entity }}</dd><dt>Constitución</dt><dd>{{ t.constitution_date|date:"d/m/Y" }}</dd>
+        <dt>Patrimonio fideicometido</dt><dd>{{ t.trust_estate }}</dd><dt>Fideicomitente</dt><dd>{{ t.settlor }}</dd>
+        <dt>Fiduciario</dt><dd>{{ t.trustee }}</dd><dt>Fideicomisario / beneficiario</dt><dd>{{ t.beneficiary }}</dd>
+        <dt>Bienes aportados</dt><dd>{{ t.contributed_assets|linebreaksbr }}</dd>
+        <dt>Vigencia</dt><dd>{{ t.effective_date|date:"d/m/Y"|default:"–" }}</dd><dt>Vencimiento</dt><dd>{{ t.expiry_date|date:"d/m/Y"|default:"–" }}</dd>
+        <dt>Observaciones</dt><dd>{{ t.notes|default:"–"|linebreaksbr }}</dd>
+      </dl>
+    </div>
+    <div class="card"><header><h2>Operaciones vinculadas</h2></header>
+      <div class="table-wrap" style="border:0"><table><tbody>{% for o in ops %}
+        <tr><td><a href="{{ o.get_absolute_url }}"><b>{{ o.code }}</b></a></td><td>{{ o.client }}</td><td>{{ o.investor }}</td><td class="num">{{ o.capital_pending|money:o.currency }}</td><td>{% chip o.status %}</td></tr>
+      {% empty %}<tr><td class="muted">Sin operaciones vinculadas.</td></tr>{% endfor %}</tbody></table></div>
+    </div>
+  </div>
+  {% include "core/_docs.html" with docs=docs %}
+</div>
+{% endblock %}

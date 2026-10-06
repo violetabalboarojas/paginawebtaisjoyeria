@@ -1,0 +1,8 @@
+{% if f %}{% if f.widget_type == "checkbox" %}
+<div class="field check{% if f.field.wide %} wide{% endif %}{% if f.errors %} has-error{% endif %}">{{ f }} <label for="{{ f.id_for_label }}">{{ f.label }}</label>{{ f.errors }}</div>
+{% else %}
+<div class="field{% if f.field.wide %} wide{% endif %}{% if f.errors %} has-error{% endif %}">
+  <label for="{{ f.id_for_label }}">{{ f.label }}{% if f.field.required %} *{% endif %}</label>{{ f }}
+  {% if f.help_text %}<span class="help">{{ f.help_text }}</span>{% endif %}{{ f.errors }}
+</div>
+{% endif %}{% endif %}

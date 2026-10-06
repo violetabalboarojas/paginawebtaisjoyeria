@@ -1,0 +1,62 @@
+{% extends "base.html" %}{% load capex static %}{% block title %}Estado de cuenta {{ op.code }}{% endblock %}
+{% block content %}
+{% with cur=op.currency %}
+<div class="page-head">
+  <div><span class="eyebrow">Estado de cuenta · corte {{ as_of|date:"d/m/Y" }}</span><h1>{{ op.code }} {% chip op.status %}</h1></div>
+  <div class="actions">
+    {% if user|can:"reports.export" %}
+    <a class="btn btn-primary" href="?formato=pdf">DESCARGAR PDF</a>
+    <a class="btn" href="?formato=xlsx">EXPORTAR EXCEL</a>
+    {% endif %}
+    <button class="btn" type="button" onclick="window.print()">IMPRIMIR</button>
+    <a class="btn" href="{{ op.get_absolute_url }}">Volver</a>
+  </div>
+</div>
+<div class="card" style="display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center">
+  <div>{% if company.logo %}<img src="{% url 'core:logo' %}" alt="" style="height:42px">{% else %}<img src="{% static 'img/logo-capex.svg' %}" alt="CAPEX" style="height:42px">{% endif %}</div>
+  <div style="text-align:right"><b>{{ company.company_name }}</b>{% if company.company_ruc %}<br><small>RUC {{ company.company_ruc }}</small>{% endif %}</div>
+</div>
+<div class="grid-2">
+  <div class="card"><header><h2>Datos de la operación</h2></header>
+    <dl class="dl">
+      <dt>Cliente</dt><dd>{{ op.client }} · {{ op.client.doc_type }} {{ op.client.doc_number }}</dd>
+      <dt>Inversionista</dt><dd>{{ op.investor }}</dd>
+      <dt>Capital inicial</dt><dd>{{ op.principal|money:cur }}</dd>
+      <dt>Tasa</dt><dd>{{ op.get_rate_type_display }} {{ op.rate_value|num:4 }}% · {{ op.get_interest_method_display|lower }} · base {{ op.day_base }}</dd>
+      <dt>Fecha inicial</dt><dd>{{ op.start_date|date:"d/m/Y" }}</dd>
+      <dt>Fecha de vencimiento</dt><dd>{{ op.maturity_date|date:"d/m/Y" }}</dd>
+      <dt>Estado</dt><dd>{{ op.get_status_display }} · {{ op.days_late }} días de atraso</dd>
+      <dt>Garantía</dt><dd>{% for m in mortgages %}Partida {{ m.property.registry_number }} ({{ m.get_inscription_status_display|lower }}){% if not forloop.last %}; {% endif %}{% empty %}Sin garantía registrada{% endfor %}</dd>
+      <dt>LTV</dt><dd>{{ ltv.ltv|pct }} <small class="muted">límite {{ ltv.limit|pct }}</small></dd>
+    </dl>
+  </div>
+  <div class="card"><header><h2>Saldos</h2></header>
+    <table>
+      <tbody>
+        <tr><td>Capital pendiente</td><td class="num">{{ s.capital_pending|money:cur }}</td></tr>
+        <tr><td>Intereses generados (devengados)</td><td class="num">{{ s.interest_accrued|money:cur }}</td></tr>
+        <tr><td>Intereses pagados</td><td class="num">{{ s.interest_paid|money:cur }}</td></tr>
+        {% if s.interest_waived %}<tr><td>Descuento de interés por cancelación anticipada</td><td class="num">{{ s.interest_waived|money:cur }}</td></tr>{% endif %}
+        <tr><td>Intereses pendientes</td><td class="num">{{ s.interest_pending|money:cur }}</td></tr>
+        <tr><td>Penalidades (generadas / pagadas / condonadas)</td><td class="num">{{ s.penalty_generated|num }} / {{ s.penalty_paid|num }} / {{ s.penalty_waived|num }}</td></tr>
+        <tr><td>Penalidades pendientes</td><td class="num">{{ s.penalty_pending|money:cur }}</td></tr>
+        <tr><td>Pagos realizados</td><td class="num">{{ s.total_paid|money:cur }}</td></tr>
+      </tbody>
+      <tfoot><tr><td>SALDO TOTAL</td><td class="num">{{ s.total_due|money:cur }}</td></tr></tfoot>
+    </table>
+  </div>
+</div>
+<div class="card"><header><h2>Cronograma</h2></header>
+<div class="table-wrap" style="border:0"><table>
+  <thead><tr><th>N°</th><th>Vence</th><th class="num">Capital</th><th class="num">Interés</th><th class="num">Penalidad</th><th class="num">Total</th><th class="num">Pagado</th><th class="num">Saldo</th><th>Pago</th><th class="num">Atraso</th><th>Estado</th></tr></thead>
+  <tbody>{% for r in rows %}<tr><td>{{ r.number }}</td><td class="nowrap">{{ r.due_date|date:"d/m/Y" }}</td><td class="num">{{ r.capital|num }}</td><td class="num">{{ r.interest|num }}</td><td class="num">{{ r.penalty_amount|num }}</td><td class="num">{{ r.expected_total|num }}</td><td class="num">{{ r.paid_total|num }}</td><td class="num">{{ r.balance|num }}</td><td class="nowrap">{{ r.payment_date|date:"d/m/Y"|default:"–" }}</td><td class="num">{{ r.days_late|default:"–" }}</td><td>{% chip r.status %}</td></tr>{% endfor %}</tbody>
+</table></div></div>
+<div class="card"><header><h2>Pagos realizados</h2></header>
+<div class="table-wrap" style="border:0"><table>
+  <thead><tr><th>Código</th><th>Fecha</th><th>Concepto</th><th class="num">Monto</th><th class="num">Capital</th><th class="num">Interés</th><th class="num">Penalidad</th><th>N° operación</th><th>Estado</th></tr></thead>
+  <tbody>{% for p in payments %}<tr class="{% if p.is_void %}is-void{% endif %}"><td>{{ p.code }}</td><td class="nowrap">{{ p.payment_date|date:"d/m/Y" }}</td><td>{{ p.get_concept_display }}</td><td class="num">{{ p.amount|num }}</td><td class="num">{{ p.capital|num }}</td><td class="num">{{ p.interest|num }}</td><td class="num">{{ p.penalty|num }}</td><td>{{ p.bank_reference|default:"–" }}</td><td>{% chip p.status %}</td></tr>
+  {% empty %}<tr><td colspan="9" class="muted">Sin pagos.</td></tr>{% endfor %}</tbody>
+</table></div></div>
+<p class="muted">Saldo total = capital pendiente + intereses devengados no pagados + penalidades pendientes, al {{ as_of|date:"d/m/Y" }}.</p>
+{% endwith %}
+{% endblock %}

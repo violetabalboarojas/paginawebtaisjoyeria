@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}No encontrado{% endblock %}
+{% block content %}<div class="card"><h1>No encontramos esa página</h1><p class="muted">El registro no existe o el enlace cambió.</p><p style="margin-top:12px"><a class="btn" href="{% url 'core:dashboard' %}">Ir al inicio</a></p></div>{% endblock %}

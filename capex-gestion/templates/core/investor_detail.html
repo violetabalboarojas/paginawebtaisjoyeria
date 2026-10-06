@@ -1,0 +1,39 @@
+{% extends "base.html" %}{% load capex %}{% block title %}{{ inv.full_name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Inversionista · {{ inv.code }}</span><h1>{{ inv.full_name }}</h1></div>
+  <div class="actions">
+    {% if user|can:"operations.create" %}<a class="btn btn-primary" href="{% url 'core:operation_create' %}?inversionista={{ inv.pk }}">Nueva operación</a>{% endif %}
+    {% if user|can:"documents.upload" %}<a class="btn" href="{% url 'core:document_upload' %}?inversionista={{ inv.pk }}">Cargar documento</a>{% endif %}
+    {% if user|can:"investors.edit" %}<a class="btn" href="{% url 'core:investor_edit' inv.pk %}">Editar</a>{% endif %}
+  </div>
+</div>
+<div class="grid-main">
+  <div class="card">
+    <header><h2>Operaciones</h2>{% chip inv.status %}</header>
+    <div class="table-wrap" style="border:0"><table>
+      <thead><tr><th>Código</th><th>Cliente</th><th>Inicio</th><th>Vence</th><th class="num">Capital</th><th class="num">Pendiente</th><th>Estado</th></tr></thead>
+      <tbody>{% for o in ops %}
+        <tr><td><a href="{{ o.get_absolute_url }}"><b>{{ o.code }}</b></a></td><td>{{ o.client }}</td><td>{{ o.start_date|date:"d/m/Y" }}</td><td>{{ o.maturity_date|date:"d/m/Y" }}</td>
+          <td class="num">{{ o.principal|money:o.currency }}</td><td class="num">{{ o.capital_pending|money:o.currency }}</td><td>{% chip o.status %}</td></tr>
+      {% empty %}<tr><td colspan="7" class="muted">Sin operaciones.</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:20px">
+    {% for cur, t in totals.items %}
+    <div class="kpi"><span class="label">Colocado {{ cur }}</span><span class="value">{{ t.placed|money:cur }}</span><span class="sub">Pendiente {{ t.pending|money:cur }}</span></div>
+    {% endfor %}
+    <div class="card"><header><h2>Datos</h2></header>
+      <dl class="dl">
+        <dt>Documento</dt><dd>{{ inv.get_doc_type_display }} {{ inv.doc_number }}</dd>
+        <dt>Teléfono</dt><dd>{{ inv.phone|default:"–" }}</dd><dt>WhatsApp</dt><dd>{{ inv.whatsapp|default:"–" }}</dd>
+        <dt>Correo</dt><dd>{{ inv.email|default:"–" }}</dd><dt>Dirección</dt><dd>{{ inv.address|default:"–" }}</dd>
+        <dt>Banco</dt><dd>{{ inv.bank|default:"–" }}</dd><dt>N° de cuenta</dt><dd>{{ inv.account_number|default:"–" }}</dd>
+        <dt>CCI</dt><dd>{{ inv.cci|default:"–" }}</dd><dt>Registro</dt><dd>{{ inv.registered_on|date:"d/m/Y" }}</dd>
+        <dt>Observaciones</dt><dd>{{ inv.notes|default:"–"|linebreaksbr }}</dd>
+      </dl>
+    </div>
+    {% include "core/_docs.html" with docs=docs %}
+  </div>
+</div>
+{% endblock %}

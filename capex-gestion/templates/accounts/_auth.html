@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% load static %}
+{% block body %}
+<div class="auth">
+  <section class="auth-brand">
+    <img src="{% static 'img/logo-capex.svg' %}" alt="CAPEX Capital Express">
+    <div class="claim"><span>Transformamos tus metas</span><em>en realidades financieras</em></div>
+  </section>
+  <section class="auth-panel"><div class="auth-card">{% block card %}{% endblock %}</div></section>
+</div>
+{% endblock %}

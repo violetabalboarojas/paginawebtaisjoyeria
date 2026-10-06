@@ -1,0 +1,84 @@
+{% extends "base.html" %}{% load static capex %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <span class="eyebrow">Dashboard ejecutivo · corte {{ as_of|date:"d/m/Y" }}</span>
+    <h1>Cartera en {{ currency }}</h1>
+  </div>
+  <div class="actions">
+    {% for code, label in currencies %}
+      <a class="btn btn-sm {% if code == currency %}btn-primary{% endif %}" href="?moneda={{ code }}">{{ label }}</a>
+    {% endfor %}
+    {% if user|can:"payments.create" %}<a class="btn btn-accent" href="{% url 'core:payment_create' %}">REGISTRAR PAGO</a>{% endif %}
+    {% if user|can:"operations.create" %}<a class="btn btn-primary" href="{% url 'core:operation_create' %}">Nueva operación</a>{% endif %}
+  </div>
+</div>
+
+<section class="kpis" aria-label="Indicadores">
+  <div class="kpi hero"><span class="label">Monto total por cobrar</span><span class="value">{{ k.total_due|money:currency }}</span><span class="sub">Capital + intereses devengados + penalidades pendientes</span></div>
+  <div class="kpi"><span class="label">Capital total colocado</span><span class="value">{{ k.placed|money:currency }}</span><span class="sub">Recuperado {{ k.capital_recovered|money:currency }}</span></div>
+  <div class="kpi"><span class="label">Capital pendiente de cobro</span><span class="value">{{ k.capital_pending|money:currency }}</span><span class="sub">Morosidad {{ k.morosidad|pct }}</span></div>
+  <div class="kpi"><span class="label">Intereses generados</span><span class="value">{{ k.interest_generated|money:currency }}</span><span class="sub">Devengados al corte</span></div>
+  <div class="kpi"><span class="label">Intereses cobrados</span><span class="value">{{ k.interest_paid|money:currency }}</span></div>
+  <div class="kpi {% if k.interest_pending %}warn{% endif %}"><span class="label">Intereses pendientes</span><span class="value">{{ k.interest_pending|money:currency }}</span></div>
+  <div class="kpi"><span class="label">Penalidades generadas</span><span class="value">{{ k.penalty_generated|money:currency }}</span><span class="sub">Netas de condonaciones</span></div>
+  <div class="kpi"><span class="label">Penalidades cobradas</span><span class="value">{{ k.penalty_paid|money:currency }}</span><span class="sub">Pendiente {{ k.penalty_pending|money:currency }}</span></div>
+</section>
+
+<section class="counts" aria-label="Operaciones por estado">
+  <div class="count"><b>{{ counts.active|default:0 }}</b><span>Operaciones activas</span></div>
+  <div class="count">{% dot "AL_DIA" %}<b>{{ counts.AL_DIA|default:0 }}</b><span>Al día</span></div>
+  <div class="count">{% dot "POR_VENCER" %}<b>{{ counts.POR_VENCER|default:0 }}</b><span>Próximas a vencer</span></div>
+  <div class="count">{% dot "VENCIDA" %}<b>{{ counts.VENCIDA|default:0 }}</b><span>Vencidas</span></div>
+  <div class="count">{% dot "EN_MORA" %}<b>{{ counts.EN_MORA|default:0 }}</b><span>En mora (&gt; {{ cfg.mora_days }} días)</span></div>
+  <div class="count">{% dot "CANCELADA" %}<b>{{ counts.CANCELADA|default:0 }}</b><span>Canceladas</span></div>
+  <div class="count"><b>{{ upcoming }}</b><span>Próximos vencimientos ({{ cfg.alert_days }} días)</span></div>
+</section>
+
+<div class="grid-main">
+  <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div class="grid-2">
+      <div class="card"><header><h2>Capital colocado</h2><small>por mes de desembolso</small></header><div class="chart-box"><canvas id="ch-placed"></canvas></div></div>
+      <div class="card"><header><h2>Intereses</h2><small>generados vs. cobrados</small></header><div class="chart-box"><canvas id="ch-interest"></canvas></div></div>
+      <div class="card"><header><h2>Recuperaciones</h2><small>capital cobrado por mes</small></header><div class="chart-box"><canvas id="ch-recovered"></canvas></div></div>
+      <div class="card"><header><h2>Morosidad</h2><small>% de capital con cuotas vencidas</small></header><div class="chart-box"><canvas id="ch-mora"></canvas></div></div>
+      <div class="card"><header><h2>Penalidades</h2><small>generadas vs. cobradas</small></header><div class="chart-box"><canvas id="ch-penalty"></canvas></div></div>
+      <div class="card"><header><h2>Flujo de caja</h2><small>real 12 meses + proyección 6 meses</small></header><div class="chart-box"><canvas id="ch-cash"></canvas></div></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:20px;min-width:0">
+    <div class="card">
+      <header><h2>Alertas</h2><a href="{% url 'core:alerts' %}">Ver las {{ alerts_total }}</a></header>
+      <div class="legend" style="margin-bottom:6px">{% chip "AL_DIA" %} {% chip "POR_VENCER" "Próximo a vencer" %} {% chip "VENCIDA" "Vencido" %} {% chip "CANCELADA" %}</div>
+      {% if alerts %}
+      <ul class="alerts">
+        {% for a in alerts %}
+        <li><span class="dot {{ a.level }}"></span><div><div class="kind">{{ a.kind }}</div><a class="msgtext" href="{{ a.url }}">{{ a.message }}</a></div><small class="nowrap">{{ a.date|date:"d/m" }}</small></li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="muted">Sin alertas. Toda la cartera está al día y con su documentación completa.</p>{% endif %}
+    </div>
+    <div class="card">
+      <header><h2>Próximos vencimientos</h2></header>
+      {% if next_rows %}
+      <div class="table-wrap" style="border:0"><table>
+        <tbody>
+        {% for r in next_rows %}
+          <tr class="{% if r.status == 'VENCIDO' %}row-red{% else %}row-yellow{% endif %}">
+            <td><a href="{% url 'core:operation_detail' r.operation_id %}"><b>{{ r.operation.code }}</b></a><br><small>{{ r.operation.client|truncatechars:26 }} · cuota {{ r.number }}</small></td>
+            <td class="num">{{ r.balance|money:r.operation.currency }}<br><small>{{ r.due_date|date:"d/m/Y" }}</small></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% else %}<p class="muted">No hay cuotas por vencer en los próximos días.</p>{% endif %}
+    </div>
+  </div>
+</div>
+{{ series|json_script:"series" }}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'js/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}
