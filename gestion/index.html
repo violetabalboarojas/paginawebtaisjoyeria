@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es-PE">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TAIS Joyería · Gestión</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#4A3A6A" />
+
+  <!-- Tipografías de marca: Cinzel (títulos) + Montserrat (cuerpo) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- Librerías por CDN: Chart.js (gráficos) y SheetJS (Excel) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Saltar al contenido</a>
+
+  <!-- ============ BARRA SUPERIOR (solo móvil) ============ -->
+  <header class="topbar">
+    <button class="icon-btn" id="btn-menu" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <span class="topbar-title" id="topbar-title">TAIS</span>
+    <span class="topbar-spacer"></span>
+  </header>
+
+  <div class="layout">
+    <!-- ============ MENÚ LATERAL ============ -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <svg class="brand-orb" viewBox="0 0 64 64" aria-hidden="true">
+          <circle cx="32" cy="28" r="20" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M28 18l1.6 4.4L34 24l-4.4 1.6L28 30l-1.6-4.4L22 24l4.4-1.6zM39 27l1 2.6 2.6 1-2.6 1-1 2.6-1-2.6-2.6-1 2.6-1z" fill="#D4AF37"/>
+          <path d="M16 50h32M19 46h26" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="brand-name">TAIS</div>
+          <div class="brand-sub">Joyería · Gestión</div>
+        </div>
+      </div>
+
+      <nav class="nav" id="nav" aria-label="Módulos"></nav>
+
+      <div class="sidebar-footer">
+        <p class="sidebar-label">Datos</p>
+        <button class="side-btn" data-accion="exportar-json">⬇ Exportar copia (JSON)</button>
+        <button class="side-btn" data-accion="importar-json">⬆ Importar copia (JSON)</button>
+        <button class="side-btn" data-accion="cargar-ejemplo">✦ Cargar datos de ejemplo</button>
+        <button class="side-btn danger" data-accion="borrar-todo">✕ Borrar todo</button>
+        <input type="file" id="input-importar" accept="application/json,.json" hidden />
+        <p class="sidebar-note">Los datos se guardan solo en este navegador. Exporta una copia seguido.</p>
+      </div>
+    </aside>
+    <div class="backdrop" id="backdrop" hidden></div>
+
+    <!-- ============ CONTENIDO ============ -->
+    <main class="main" id="main" tabindex="-1">
+      <div id="view"></div>
+    </main>
+  </div>
+
+  <!-- ============ MODAL GENÉRICO ============ -->
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+    <div class="modal-card" id="modal-card">
+      <div class="modal-head">
+        <h2 id="modal-title">Título</h2>
+        <button class="icon-btn" data-cerrar-modal aria-label="Cerrar">✕</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Contenedor de notificaciones -->
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <!-- Scripts de la app (scripts clásicos para que funcione abriendo el archivo directo, sin servidor) -->
+  <script src="js/utils.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/negocio.js" defer></script>
+  <script src="js/seed.js" defer></script>
+  <script src="js/modules/dashboard.js" defer></script>
+  <script src="js/modules/productos.js" defer></script>
+  <script src="js/modules/ventas.js" defer></script>
+  <script src="js/modules/insumos.js" defer></script>
+  <script src="js/modules/desarrollo.js" defer></script>
+  <script src="js/modules/tareas.js" defer></script>
+  <script src="js/modules/reportes.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
