@@ -5,6 +5,7 @@
    ===================================================================== */
 
 :root {
+  color-scheme: light; /* diseño de un solo tema claro, a propósito */
   --lila: #C8B4EB;
   --lila-50: #F5F0FC;
   --lila-100: #EBE2F8;
@@ -58,7 +59,7 @@ a { color: var(--violeta); }
 .layout { display: flex; min-height: 100vh; }
 
 .topbar {
-  position: sticky; top: 0; z-index: 30;
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30;
   display: flex; align-items: center; gap: 8px;
   height: 56px; padding: 0 12px;
   background: var(--violeta); color: #fff;

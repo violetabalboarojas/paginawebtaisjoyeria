@@ -300,17 +300,20 @@
   const slug = (s) => U.normalizar(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
   /** Descarga un reporte por id. */
-  function descargar(id) {
+  /** Convierte el libro a archivo .xlsx y lo descarga. */
+  const guardarLibro = (wb, nombre) =>
+    U.descargar(nombre, new Blob([window.XLSX.write(wb, { bookType: 'xlsx', type: 'array', compression: true })], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+
+  async function descargar(id) {
     if (!xlsxDisponible()) return;
     const rep = REPORTES.find((r) => r.id === id);
     const sub = rep.usaFechas ? `Periodo: ${textoRango()} · Generado el ${U.fecha(U.hoy())}` : `Generado el ${U.fecha(U.hoy())}`;
     const wb = libro(rep.construir(), sub);
-    window.XLSX.writeFile(wb, `TAIS-${slug(rep.titulo)}-${U.hoy()}.xlsx`, { compression: true });
-    U.toast('Excel descargado ✦', 'ok');
+    if (await guardarLibro(wb, `TAIS-${slug(rep.titulo)}-${U.hoy()}.xlsx`)) U.toast('Excel descargado ✦', 'ok');
   }
 
   /** Un libro con una hoja por módulo (todos los datos, sin filtro de fechas). */
-  function exportarTodo() {
+  async function exportarTodo() {
     if (!xlsxDisponible()) return;
     const prods = Store.listar('productos');
     const ventas = Store.listar('ventas').slice().sort((a, b) => a.fecha.localeCompare(b.fecha));
@@ -338,8 +341,7 @@
     tablas.push(...REPORTES.find((r) => r.id === 'tareas').construir());
     Object.assign(rango, guardado);
     const wb = libro(tablas, `Exportación completa · ${U.fecha(U.hoy())}`);
-    window.XLSX.writeFile(wb, `TAIS-exportacion-completa-${U.hoy()}.xlsx`, { compression: true });
-    U.toast('Exportación completa descargada ✦', 'ok');
+    if (await guardarLibro(wb, `TAIS-exportacion-completa-${U.hoy()}.xlsx`)) U.toast('Exportación completa descargada ✦', 'ok');
   }
 
   T.Reportes = { descargar, exportarTodo, REPORTES };

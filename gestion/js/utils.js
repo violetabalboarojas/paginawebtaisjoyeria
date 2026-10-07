@@ -110,15 +110,33 @@ window.TAIS = window.TAIS || {};
     return o;
   };
 
-  /** Descarga un archivo generado en el navegador. */
-  U.descargar = (nombre, contenido, tipo = 'application/json') => {
+  /**
+   * Descarga un archivo generado en el navegador. Devuelve Promise<boolean> (true = guardado).
+   * Publicada como Artifact en claude.ai, usa la capacidad "downloads" (el visor pide
+   * confirmación); abierta como archivo local, usa un enlace de descarga normal.
+   */
+  U.descargar = async (nombre, contenido, tipo = 'application/json') => {
     const blob = contenido instanceof Blob ? contenido : new Blob([contenido], { type: tipo });
+    let dl = null;
+    try { dl = window.claude && window.claude.use ? await window.claude.use('downloads') : null; } catch (e) { dl = null; }
+    if (dl) {
+      try {
+        await dl.save({ filename: nombre, data: blob });
+        return true;
+      } catch (err) {
+        if (err && err.code === 'declined') return false;
+        if (err && err.code === 'rate_limited') { U.toast('Ya hay una descarga esperando confirmación.', 'warn'); return false; }
+        U.toast('No se pudo descargar el archivo en esta vista.', 'bad');
+        return false;
+      }
+    }
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement('a'), { href: url, download: nombre });
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
   };
 
   /* ---------------- Avisos (toasts) ---------------- */

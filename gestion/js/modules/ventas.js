@@ -61,11 +61,6 @@
     });
     pintar();
 
-    // Acceso directo desde el Dashboard: #ventas?nueva
-    if (location.hash.includes('?nueva')) {
-      history.replaceState(null, '', '#ventas');
-      abrirForm();
-    }
   }
 
   function pintarLista(cont) {

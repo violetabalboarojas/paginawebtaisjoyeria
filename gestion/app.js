@@ -64,8 +64,7 @@
   /* ---------------- Acciones globales (pie del menú) ---------------- */
   async function accion(nombre) {
     if (nombre === 'exportar-json') {
-      U.descargar(`tais-copia-${U.hoy()}.json`, Store.exportar());
-      U.toast('Copia de seguridad descargada', 'ok');
+      if (await U.descargar(`tais-copia-${U.hoy()}.json`, Store.exportar())) U.toast('Copia de seguridad descargada', 'ok');
     }
     if (nombre === 'importar-json') document.getElementById('input-importar').click();
     if (nombre === 'cargar-ejemplo') {

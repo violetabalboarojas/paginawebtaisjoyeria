@@ -77,7 +77,7 @@
       <div class="view-head">
         <div><h1>Dashboard</h1><p>Resumen de ${U.esc(U.mesNombre(U.mesClave(hoy)).replace(/ \d+$/, ''))} ${hoy.slice(0, 4)} · hoy ${U.fecha(hoy)}</p></div>
         <div class="acciones">
-          <a class="btn btn-primario" href="#ventas?nueva">+ Nueva venta</a>
+          <button class="btn btn-primario" data-nueva-venta>+ Nueva venta</button>
         </div>
       </div>
 
@@ -123,6 +123,11 @@
             : U.vacio('Todos los insumos están sobre el mínimo.')}
         </div>
       </div>`;
+
+    U.$('[data-nueva-venta]', el).addEventListener('click', () => {
+      location.hash = '#ventas';
+      setTimeout(() => T.abrirFormVenta(), 0);
+    });
 
     Graficos.barras(U.$('#g-mes', el), porMes.map((m) => U.mesNombre(m.mes)), porMes.map((m) => m.total), { color: '#4A3A6A' });
     Graficos.barras(U.$('#g-top', el), top5.map((p) => p.clave), top5.map((p) => p.unidades), { color: '#D4AF37', horizontal: true, moneda: false });
