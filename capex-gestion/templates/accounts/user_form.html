@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}Usuario{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Usuarios</span>
+<h1>{% if password %}Contraseña temporal de {{ obj }}{% elif obj %}Editar {{ obj }}{% else %}Nuevo usuario{% endif %}</h1></div></div>
+<form method="post" class="card" style="display:flex;flex-direction:column;gap:14px" novalidate>{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <div class="form-grid">{% include "partials/fields.html" %}</div>
+  <div class="form-actions"><a class="btn" href="{% url 'accounts:user_list' %}">Cancelar</a><button class="btn btn-primary" type="submit">Guardar</button></div>
+</form>
+{% endblock %}

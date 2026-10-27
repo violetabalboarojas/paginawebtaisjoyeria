@@ -1,0 +1,11 @@
+{% extends "base.html" %}{% block title %}Garantía {{ op.code }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Garantía hipotecaria · {{ op.code }}</span><h1>{% if mortgage %}Editar garantía{% else %}Registrar inmueble en garantía{% endif %}</h1></div></div>
+<form method="post" novalidate style="display:flex;flex-direction:column;gap:20px">{% csrf_token %}
+  {% include "partials/form_errors.html" with form=pform %}{% include "partials/form_errors.html" with form=mform %}
+  <div class="card"><fieldset><legend>Inmueble</legend><div class="form-grid">{% include "partials/fields.html" with form=pform %}</div></fieldset></div>
+  <div class="card"><fieldset><legend>Hipoteca</legend><div class="form-grid">{% include "partials/fields.html" with form=mform %}</div></fieldset>
+    <p class="muted" style="margin-top:10px">Capital de la operación: {{ op.principal }} {{ op.currency }}. El LTV se calcula como capital / valor comercial × 100 y se compara con el límite de Configuración.</p></div>
+  <div class="form-actions"><a class="btn" href="{{ op.get_absolute_url }}?tab=garantia">Cancelar</a><button class="btn btn-primary" type="submit">Guardar garantía</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% load capex %}
+<div class="card"><header><h2>Expediente digital</h2></header>
+{% if docs %}<ul class="alerts">{% for d in docs %}
+  <li><span class="dot" style="background:var(--teal)"></span><div><div class="kind">{{ d.get_doc_type_display }}</div>
+    {% if user|can:"documents.view" %}<a class="msgtext" href="{% url 'core:document_download' d.pk %}">{{ d.title|default:d.original_name }}</a>{% else %}{{ d.title|default:d.original_name }}{% endif %}
+    <div><small>{{ d.uploaded_at|date:"d/m/Y H:i" }} · {{ d.uploaded_by }} · {{ d.size|filesize }}</small></div></div><span></span></li>
+{% endfor %}</ul>{% else %}<p class="muted">Sin documentos cargados.</p>{% endif %}
+</div>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Roles y permisos{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Administración</span><h1>Roles y permisos</h1></div></div>
+<p class="muted">Marque qué puede hacer cada rol. El rol ADMINISTRADOR siempre conserva todos los permisos. Un ASESOR sin "Ver la cartera completa" solo ve sus clientes y operaciones asignadas.</p>
+<form method="post">{% csrf_token %}
+<div class="table-wrap"><table>
+  <thead><tr><th>Permiso</th>{% for r in roles %}<th style="text-align:center">{{ r.name }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for module, perms in grouped.items %}
+    <tr><td colspan="{{ roles|length|add:1 }}" style="background:var(--surface-2)"><b>{{ module }}</b></td></tr>
+    {% for p in perms %}
+    <tr>
+      <td>{{ p.description }} <small class="muted">({{ p.code }})</small></td>
+      {% for r in roles %}{% with ids=matrix|get:r.pk %}
+      <td style="text-align:center"><input type="checkbox" name="role_{{ r.pk }}" value="{{ p.pk }}" aria-label="{{ r.name }}: {{ p.description }}" {% if p.pk in ids %}checked{% endif %} {% if r.name == "ADMINISTRADOR" %}disabled{% endif %}></td>
+      {% endwith %}{% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+<div class="form-actions"><button class="btn btn-primary" type="submit">Guardar permisos</button></div>
+</form>
+<form method="post" action="{% url 'accounts:role_create' %}" class="card" style="display:flex;flex-direction:column;gap:12px;max-width:720px">{% csrf_token %}
+  <h2>Nuevo rol</h2>
+  <div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">{% include "partials/fields.html" %}</div>
+  <div class="form-actions"><button class="btn" type="submit">Crear rol</button></div>
+</form>
+{% endblock %}

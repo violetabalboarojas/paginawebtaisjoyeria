@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ title }}</h1></div></div>
+<form method="post" class="card" style="display:flex;flex-direction:column;gap:14px" novalidate {% if multipart or form.is_multipart %}enctype="multipart/form-data"{% endif %}>{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <div class="form-grid">{% include "partials/fields.html" %}</div>
+  <div class="form-actions">{% if back %}<a class="btn" href="{{ back }}">Cancelar</a>{% endif %}<button class="btn btn-primary" type="submit">{{ submit|default:"Guardar" }}</button></div>
+</form>
+{% endblock %}

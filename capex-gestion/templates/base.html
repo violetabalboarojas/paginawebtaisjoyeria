@@ -1,0 +1,71 @@
+{% load static capex %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% block title %}CAPEX Gestión{% endblock %} · {{ company.company_name|default:"CAPEX" }}</title>
+  <link rel="icon" href="{% static 'img/mark-capex.svg' %}" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Poppins:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+{% block body %}
+<input type="checkbox" id="nav-toggle" hidden>
+<div class="app">
+  <aside class="sidebar" aria-label="Menú principal">
+    <a class="brand" href="{% url 'core:dashboard' %}">
+      {% if company.logo %}<img src="{% url 'core:logo' %}" alt="{{ company.company_name }}">{% else %}<img src="{% static 'img/logo-capex.svg' %}" alt="CAPEX Capital Express">{% endif %}
+    </a>
+    <nav class="nav">
+      {% if user|can:"dashboard.view" %}
+      <a href="{% url 'core:dashboard' %}" class="{% if nav == 'dashboard' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg>Dashboard</a>
+      <a href="{% url 'core:alerts' %}" class="{% if nav == 'alerts' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0"/></svg>Alertas</a>
+      {% endif %}
+      <span class="group">Cartera</span>
+      {% if user|can:"operations.view" %}<a href="{% url 'core:operation_list' %}" class="{% if nav == 'operations' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg>Operaciones</a>{% endif %}
+      {% if user|can:"payments.view" %}<a href="{% url 'core:payment_list' %}" class="{% if nav == 'payments' %}active{% endif %}"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20M6 15h4"/></svg>Pagos</a>{% endif %}
+      {% if user|can:"penalties.view" %}<a href="{% url 'core:penalty_list' %}" class="{% if nav == 'penalties' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0"/></svg>Penalidades</a>{% endif %}
+      {% if user|can:"trusts.view" %}<a href="{% url 'core:trust_list' %}" class="{% if nav == 'trusts' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M3 21h18M5 21V10l7-6 7 6v11M9 21v-6h6v6"/></svg>Fideicomisos</a>{% endif %}
+      <span class="group">Personas</span>
+      {% if user|can:"clients.view" %}<a href="{% url 'core:client_list' %}" class="{% if nav == 'clients' %}active{% endif %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>Clientes</a>{% endif %}
+      {% if user|can:"investors.view" %}<a href="{% url 'core:investor_list' %}" class="{% if nav == 'investors' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-8M15 7h6v6"/></svg>Bonistas</a>{% endif %}
+      <span class="group">Gestión</span>
+      {% if user|can:"documents.view" %}<a href="{% url 'core:document_list' %}" class="{% if nav == 'documents' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 13h8M8 17h5"/></svg>Documentos</a>{% endif %}
+      {% if user|can:"imports.run" %}<a href="{% url 'core:import_list' %}" class="{% if nav == 'imports' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Importar Excel</a>{% endif %}
+      {% if user|can:"reports.view" %}<a href="{% url 'core:reports' %}" class="{% if nav == 'reports' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Reportes</a>{% endif %}
+      {% if user|can:"audit.view" %}<a href="{% url 'audit:list' %}" class="{% if nav == 'audit' %}active{% endif %}"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>Auditoría</a>{% endif %}
+      {% if user|can:"settings.manage" or user|can:"users.manage" %}<span class="group">Administración</span>{% endif %}
+      {% if user|can:"settings.manage" %}<a href="{% url 'core:settings' %}" class="{% if nav == 'settings' %}active{% endif %}"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1"/></svg>Configuración</a>{% endif %}
+      {% if user|can:"users.manage" %}
+      <a href="{% url 'accounts:user_list' %}" class="{% if nav == 'users' %}active{% endif %}"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="4"/><path d="M1 21a8 8 0 0 1 16 0M17 4a4 4 0 0 1 0 8M23 21a8 8 0 0 0-5-7.4"/></svg>Usuarios</a>
+      <a href="{% url 'accounts:roles' %}" class="{% if nav == 'roles' %}active{% endif %}"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Roles y permisos</a>
+      {% endif %}
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <label for="nav-toggle" class="menu-toggle" aria-label="Abrir menú"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></label>
+      <form class="search" action="{% url 'core:search' %}" role="search">
+        <input type="search" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Buscar nombre, DNI, RUC, operación, teléfono, partida…" aria-label="Buscador general">
+      </form>
+      <div class="user">
+        <div class="who" style="text-align:right;line-height:1.2">
+          <div><b>{{ user.get_full_name|default:user.username }}</b></div>
+          <div class="role">{{ user.role|default:"Sin rol" }}</div>
+        </div>
+        <a class="btn btn-sm" href="{% url 'accounts:password_change' %}" title="Cambiar contraseña">Contraseña</a>
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="btn btn-sm" type="submit">Cerrar sesión</button></form>
+      </div>
+    </header>
+    <main class="content">
+      {% if messages %}<div class="messages">{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}</div>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}{% endblock %}
+</body>
+</html>

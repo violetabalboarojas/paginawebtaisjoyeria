@@ -1,0 +1,34 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Importar Excel{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Integración</span><h1>Importar Excel</h1></div></div>
+<div class="grid-main">
+  <form method="post" enctype="multipart/form-data" class="card" style="display:flex;flex-direction:column;gap:14px">{% csrf_token %}
+    <header><h2>Cargar cronograma</h2></header>
+    <p class="muted">Acepta libros con la estructura del cronograma de bonos titulizados: un bloque por serie con <b>Monto Emisión, Valor Nominal, Cant. Bonos, Moneda, Plazo, TNM y TEA</b>, la tabla <b>Periodo / Fecha / Principal / Amortización / Interés / Cuota / Estado</b>, el consolidado con <b>Com. Adm.</b> y, si existe, la hoja <b>IMC</b> con tasas máximas y distribución por bonista.</p>
+    <div class="field"><label for="file">Archivo Excel (.xlsx, máx. {{ max_mb }} MB)</label><input type="file" id="file" name="file" accept=".xlsx,.xlsm" required></div>
+    <div class="form-actions"><button class="btn btn-accent" type="submit">IMPORTAR EXCEL</button></div>
+    <p class="muted" style="font-size:.84rem">Nada se registra al cargar: primero verá una revisión con los cálculos del sistema comparados con el Excel, los errores y los datos que faltan.</p>
+  </form>
+  <div class="card"><header><h2>Qué hace la importación</h2></header>
+    <ul style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;font-size:.9rem">
+      <li>Crea una operación por serie con sus fechas reales de vencimiento.</li>
+      <li>Recalcula cada interés con la fórmula del Excel (TEA, días reales/360, redondeo por bono) y marca diferencias.</li>
+      <li>Registra como pagadas las cuotas con estado “Pagado”.</li>
+      <li>Detecta cuotas vencidas, días de atraso y calcula el IMC con la tasa máxima del BCRP.</li>
+      <li>Vincula el fideicomiso y los bonistas con su participación.</li>
+      <li>No duplica: si la serie ya existe, solo agrega los pagos nuevos.</li>
+    </ul>
+  </div>
+</div>
+<div class="card"><header><h2>Historial de importaciones</h2></header>
+  <div class="table-wrap" style="border:0"><table>
+    <thead><tr><th>N°</th><th>Archivo</th><th>Cargado</th><th>Usuario</th><th>Resultado</th><th>Estado</th><th></th></tr></thead>
+    <tbody>{% for b in batches %}
+      <tr><td>{{ b.pk }}</td><td>{{ b.original_name }}</td><td class="nowrap">{{ b.created_at|date:"d/m/Y H:i" }}</td><td>{{ b.uploaded_by }}</td>
+        <td>{% if b.result.created %}Creó {{ b.result.created|join:", " }}{% endif %}{% if b.result.updated %} · Actualizó {{ b.result.updated|join:", " }}{% endif %}</td>
+        <td>{% if b.status == "CONFIRMED" %}{% chip "PAGADO" "Importado" %}{% elif b.status == "PREVIEW" %}{% chip "POR_VENCER" "En revisión" %}{% else %}{% chip "PENDIENTE" "Descartado" %}{% endif %}</td>
+        <td><a class="btn btn-sm" href="{% url 'core:import_preview' b.pk %}">{% if b.status == "PREVIEW" %}Revisar{% else %}Ver{% endif %}</a></td></tr>
+    {% empty %}<tr><td colspan="7" class="muted">Aún no se ha importado ningún archivo.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

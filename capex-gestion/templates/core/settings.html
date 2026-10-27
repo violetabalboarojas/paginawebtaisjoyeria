@@ -1,0 +1,22 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Configuración{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Administración</span><h1>Configuración</h1></div></div>
+<form method="post" enctype="multipart/form-data" class="card" style="display:flex;flex-direction:column;gap:14px" novalidate>{% csrf_token %}
+  <header><h2>Empresa y parámetros</h2></header>
+  {% include "partials/form_errors.html" %}
+  <div class="form-grid">{% include "partials/fields.html" %}</div>
+  <p class="muted">Estados de operación: AL DÍA y POR VENCER dependen de “días de alerta”; VENCIDA aplica desde el primer día de atraso; EN MORA cuando el atraso supera “días para considerar EN MORA”. Ningún cambio aquí altera condiciones de operaciones ya registradas.</p>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Guardar configuración</button></div>
+</form>
+<div class="card">
+  <header><h2>Perfiles de condiciones (tipos de tasa y penalidad)</h2><a class="btn btn-primary btn-sm" href="{% url 'core:profile_create' %}">Nuevo perfil</a></header>
+  <p class="muted" style="margin-bottom:10px">Al crear una operación se copian los valores del perfil. Editar un perfil solo afecta operaciones nuevas.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Perfil</th><th>Tasa</th><th>Método</th><th>Días</th><th>Periodicidad</th><th>Amortización</th><th>Penalidad</th><th>Activo</th><th></th></tr></thead>
+    <tbody>{% for p in profiles %}<tr><td><b>{{ p.name }}</b><br><small class="muted">{{ p.description }}</small></td><td>{{ p.rate_type }} {{ p.rate_value|num:4 }}%</td><td>{{ p.get_interest_method_display }}</td><td>{{ p.day_count }}/{{ p.day_base }}</td>
+      <td>{{ p.get_periodicity_display }}</td><td>{{ p.amortization }}</td><td>{{ p.get_penalty_type_display }} {{ p.penalty_value|num:4 }}</td><td>{% if p.is_active %}Sí{% else %}No{% endif %}</td>
+      <td><a class="btn btn-sm" href="{% url 'core:profile_edit' p.pk %}">Editar</a></td></tr>
+    {% empty %}<tr><td colspan="9" class="muted">Sin perfiles.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+{% endblock %}

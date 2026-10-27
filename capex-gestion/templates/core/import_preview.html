@@ -1,0 +1,105 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Revisión de importación{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Importación {{ batch.pk }} · {{ batch.original_name }}</span>
+    <h1>{% if batch.status == "PREVIEW" %}Revise antes de confirmar{% elif batch.status == "CONFIRMED" %}Importación completada{% else %}Importación descartada{% endif %}</h1>
+    <p class="muted">{{ p.trust_name }} · cálculos al {{ p.as_of|dmy }}</p></div>
+  <div class="actions"><a class="btn" href="{% url 'core:import_list' %}">Volver</a></div>
+</div>
+
+{% if batch.status == "CONFIRMED" %}
+<div class="card"><header><h2>Resultado</h2>{% chip "PAGADO" "Importado" %}</header>
+  <p>Hoja usada: <b>{{ batch.result.sheet }}</b> · Fideicomiso {{ batch.result.trust }} · {{ batch.result.payments }} pago(s) registrados{% if batch.result.investors_created %} · bonistas creados: {{ batch.result.investors_created|join:", " }}{% endif %}.</p>
+  <div class="actions" style="margin-top:10px">{% for o in result_ops %}<a class="btn btn-primary" href="{{ o.get_absolute_url }}?tab=cronograma">{{ o.code }} · {{ o.series|default:o.client }}</a>{% endfor %}</div>
+</div>
+{% endif %}
+
+{% if p.sheets|length > 1 %}
+<div class="card"><header><h2>Hoja vigente</h2></header>
+  <p class="muted" style="margin-bottom:8px">El libro tiene más de un cronograma. Elija cuál refleja la situación actual.</p>
+  <div class="actions">{% for s in p.sheets %}<a class="btn {% if s == p.sheet %}btn-primary{% endif %}" href="?hoja={{ s|urlencode }}">{{ s }}{% if s == p.recommended %} · recomendada{% endif %}</a>{% endfor %}</div>
+  {% if p.recommended %}<p class="muted" style="margin-top:8px;font-size:.84rem">Recomendada porque la hoja IMC calcula los intereses moratorios con ese cronograma.</p>{% endif %}
+</div>
+{% endif %}
+
+{% if errors or review or infos %}
+<div class="card"><header><h2>Validaciones</h2><small class="muted">{{ errors|length }} error(es) · {{ review|length }} para revisar</small></header>
+  <ul class="alerts">
+    {% for i in errors %}<li><span class="dot red"></span><div><div class="kind">Error</div><span class="msgtext">{{ i.msg }}</span></div><span></span></li>{% endfor %}
+    {% for i in review %}<li><span class="dot yellow"></span><div><div class="kind">{% if i.level == "review" %}Revisión manual{% else %}Advertencia{% endif %}</div><span class="msgtext">{{ i.msg }}</span></div><span></span></li>{% endfor %}
+    {% for i in infos %}<li><span class="dot" style="background:var(--teal)"></span><div><div class="kind">Información</div><span class="msgtext">{{ i.msg }}</span></div><span></span></li>{% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% for s in p.series %}
+<section class="card" style="display:flex;flex-direction:column;gap:14px">
+  <header><h2>{{ s.title }}</h2>{% if s.existing %}{% chip "PENDIENTE" "Ya existe: "|add:s.existing %}{% else %}{% chip "AL_DIA" "Nueva operación" %}{% endif %}</header>
+  <div class="kpis">
+    <div class="kpi"><span class="label">Capital</span><span class="value">{{ s.summary.capital|money:s.currency }}</span><span class="sub">{{ s.units }} bonos × {{ s.nominal|money:s.currency }}</span></div>
+    <div class="kpi"><span class="label">Capital pendiente</span><span class="value">{{ s.summary.capital_pending|money:s.currency }}</span><span class="sub">Pagado {{ s.summary.capital_paid|money:s.currency }}</span></div>
+    <div class="kpi"><span class="label">Intereses generados</span><span class="value">{{ s.summary.interest_generated|money:s.currency }}</span><span class="sub">Pagados {{ s.summary.interest_paid|money:s.currency }}</span></div>
+    <div class="kpi warn"><span class="label">Intereses pendientes</span><span class="value">{{ s.summary.interest_pending|money:s.currency }}</span></div>
+    <div class="kpi bad"><span class="label">Penalidad IMC al día</span><span class="value">{{ s.summary.penalty|money:s.currency }}</span><span class="sub">Tasa máx. {{ s.max_rate|num:2 }}%</span></div>
+    <div class="kpi hero"><span class="label">Total por cobrar</span><span class="value">{{ s.summary.total_due|money:s.currency }}</span></div>
+  </div>
+  <div class="counts">
+    <div class="count">{% dot "PAGADO" %}<b>{{ s.summary.paid }}</b><span>Cuotas pagadas</span></div>
+    <div class="count">{% dot "VENCIDO" %}<b>{{ s.summary.overdue }}</b><span>Cuotas vencidas{% if s.summary.max_days_late %} (hasta {{ s.summary.max_days_late }} d){% endif %}</span></div>
+    <div class="count">{% dot "PENDIENTE" %}<b>{{ s.summary.upcoming }}</b><span>Cuotas por vencer</span></div>
+  </div>
+  <div class="grid-2">
+    <dl class="dl">
+      <dt>Moneda</dt><dd>{{ s.currency }}</dd><dt>Inicio / término</dt><dd>{{ s.start|dmy }} → {{ s.end|dmy }}</dd>
+      <dt>Tasa</dt><dd>TEA {{ s.tea|num:4 }} · TNM {{ s.tnm|num:4 }} (fracción)</dd>
+      <dt>Interés</dt><dd>ROUND(principal / {{ s.units }} × ((1 + TEA)^(días/360) − 1), 2) × {{ s.units }}</dd>
+      <dt>Modalidad</dt><dd>Intereses mensuales, capital al vencimiento (bullet){% if s.rows|length > s.term %} con prepago{% endif %}</dd>
+    </dl>
+    <div>
+      <b>Bonistas</b>
+      {% if s.holders %}<table style="margin-top:6px"><tbody>{% for h in s.holders %}<tr><td>{{ h.name }}</td><td class="num">{{ h.pct|frac_pct }}</td></tr>{% endfor %}</tbody></table>
+      {% else %}<p class="muted">Sin distribución en el archivo.</p>{% endif %}
+      {% if s.checks %}<p style="margin-top:10px"><b>Control IMC contra la hoja del Excel</b></p>
+      <table><thead><tr><th>Cuota</th><th class="num">Excel</th><th class="num">Sistema</th><th></th></tr></thead><tbody>
+        {% for c in s.checks %}<tr><td>{{ c.label }}</td><td class="num">{{ c.excel }}</td><td class="num">{{ c.system }}</td><td>{% if c.ok %}{% chip "PAGADO" "Coincide" %}{% else %}{% chip "VENCIDO" "Difiere" %}{% endif %}</td></tr>{% endfor %}
+      </tbody></table>{% endif %}
+    </div>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Periodo</th><th>Vencimiento</th><th class="num">Días</th><th class="num">Principal</th><th class="num">Amortización</th><th class="num">Interés (sistema)</th><th class="num">Interés (Excel)</th><th class="num">Cuota</th><th>Estado Excel</th><th>Estado al día</th><th class="num">Atraso</th><th class="num">IMC</th></tr></thead>
+    <tbody>{% for r in s.rows %}
+      <tr class="{% if r.state == 'VENCIDO' %}row-red{% endif %}"><td><b>{{ r.label }}</b></td><td class="nowrap">{{ r.due|dmy }}</td><td class="num">{{ r.days }}</td><td class="num">{{ r.opening|num }}</td><td class="num">{{ r.amort|num }}</td>
+        <td class="num">{{ r.interest|num }}</td><td class="num">{{ r.interest_excel|num }}</td><td class="num"><b>{{ r.cuota|num }}</b></td><td>{{ r.status_excel|default:"–" }}</td>
+        <td>{% chip r.state %}</td><td class="num">{{ r.days_late|default:"–" }}</td><td class="num" title="{{ r.formula|default:'' }}">{{ r.penalty|num }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endfor %}
+
+{% if batch.status == "PREVIEW" and p.series %}
+<form method="post" class="card" style="display:flex;flex-direction:column;gap:14px">{% csrf_token %}
+  <input type="hidden" name="sheet" value="{{ p.sheet }}">
+  <header><h2>Completar y confirmar</h2></header>
+  <fieldset><legend>Cliente / fideicomitente</legend>
+    <div class="form-grid">
+      <div class="field"><label for="cm1"><input type="radio" id="cm1" name="client_mode" value="existing" checked> Cliente existente</label>
+        <select name="client_id" aria-label="Cliente existente"><option value="">Seleccione…</option>{% for c in clients %}<option value="{{ c.pk }}">{{ c.full_name }} · {{ c.doc_type }} {{ c.doc_number }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="cm2"><input type="radio" id="cm2" name="client_mode" value="new"> Registrar nuevo: nombre o razón social</label><input name="client_name" aria-label="Nombre del nuevo cliente"></div>
+      <div class="field"><label for="cdoc">Documento del nuevo cliente</label>
+        <div style="display:flex;gap:6px"><select name="client_doc_type" style="max-width:90px" aria-label="Tipo de documento"><option>RUC</option><option>DNI</option><option>CE</option></select><input id="cdoc" name="client_doc"></div></div>
+    </div>
+  </fieldset>
+  {% for s in p.series %}{% if not s.holders and not s.existing %}
+  <fieldset><legend>Bonista de {{ s.title }}</legend><div class="form-grid"><div class="field"><select name="investor_{{ s.label }}" aria-label="Bonista"><option value="">Seleccione…</option>{% for i in investors %}<option value="{{ i.pk }}">{{ i }}</option>{% endfor %}</select></div></div></fieldset>
+  {% endif %}{% endfor %}
+  {% if p.imc.max_rate_usd or p.imc.max_rate_pen %}
+  <div class="field check"><input type="checkbox" id="ur" name="update_rates" value="1" checked><label for="ur">Actualizar en Configuración las tasas máximas BCRP (S/ {{ p.imc.max_rate_pen|num:2 }}% · US$ {{ p.imc.max_rate_usd|num:2 }}%) y la retención de IR ({{ p.imc.withholding|default:"–" }}%) leídas del archivo</label></div>
+  {% endif %}
+  <p class="muted" style="font-size:.85rem">Al confirmar se crean las operaciones con su cronograma, los pagos de las cuotas “Pagado” (fecha de pago = vencimiento), los bonistas con su participación y el vínculo con el fideicomiso{% if p.admin_fee %} (comisión administrativa {{ p.admin_fee }} por periodo){% endif %}. Todo queda en auditoría.</p>
+  <div class="form-actions">
+    <button class="btn btn-danger" type="submit" name="action" value="discard" formnovalidate>Descartar</button>
+    <button class="btn btn-accent" type="submit" name="action" value="confirm" {% if errors %}disabled{% endif %}>Confirmar importación</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

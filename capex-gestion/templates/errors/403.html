@@ -1,0 +1,2 @@
+{% extends "base.html" %}{% block title %}Sin permiso{% endblock %}
+{% block content %}<div class="card"><h1>No tiene permiso para ver esta página</h1><p class="muted">Su rol no incluye este acceso. Si lo necesita, pídalo al administrador del sistema.</p><p style="margin-top:12px"><a class="btn" href="{% url 'core:dashboard' %}">Ir al inicio</a></p></div>{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Reportes{% endblock %}
+{% block content %}
+<div class="page-head"><div><span class="eyebrow">Análisis</span><h1>Reportes</h1></div>
+  {% if report and user|can:"reports.export" %}<div class="actions"><a class="btn btn-primary" href="{% qs formato='xlsx' %}">Exportar Excel</a><a class="btn" href="{% qs formato='pdf' %}">Exportar PDF</a></div>{% endif %}
+</div>
+<form class="card" method="get" style="display:flex;flex-direction:column;gap:14px">
+  <div class="form-grid" style="grid-template-columns:repeat(4,minmax(0,1fr))">{% include "partials/fields.html" %}</div>
+  <div class="form-actions"><button class="btn btn-primary" type="submit">Generar reporte</button></div>
+</form>
+{% if report %}
+<div class="card">
+  <header><h2>{{ report.title }}</h2><small>{{ report.rows|length }} fila{{ report.rows|length|pluralize }}</small></header>
+  <div class="table-wrap"><table>
+    <thead><tr>{% for k, label, t in report.columns %}<th class="{% if t == 'money' or t == 'int' or t == 'pct' %}num{% endif %}">{{ label }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in report.rows %}<tr>{% for k, label, t in report.columns %}{% with v=r|get:k %}
+      <td class="{% if t == 'money' or t == 'int' or t == 'pct' %}num{% endif %}">{% if t == 'money' %}{{ v|num }}{% elif t == 'date' %}{{ v|date:"d/m/Y" }}{% elif t == 'pct' %}{{ v|pct }}{% else %}{{ v|default:"" }}{% endif %}</td>
+    {% endwith %}{% endfor %}</tr>{% empty %}<tr><td colspan="{{ report.columns|length }}" class="muted">Sin resultados para estos filtros.</td></tr>{% endfor %}</tbody>
+    {% if report.rows %}<tfoot>{% for cur, tot in report.totals.items %}<tr>{% for k, label, t in report.columns %}<td class="{% if t == 'money' %}num{% endif %}">{% if forloop.first %}Total {{ cur }}{% elif t == 'money' %}{{ tot|get:k|num }}{% endif %}</td>{% endfor %}</tr>{% endfor %}</tfoot>{% endif %}
+  </table></div>
+  {% if report.notes %}<p class="muted" style="margin-top:10px">{{ report.notes }}</p>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

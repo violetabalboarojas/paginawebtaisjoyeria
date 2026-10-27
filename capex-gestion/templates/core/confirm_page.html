@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1>{{ title }}</h1></div></div>
+<form method="post" class="card" style="display:flex;flex-direction:column;gap:14px;max-width:720px" novalidate>{% csrf_token %}
+  <p>{{ text }}</p>
+  {% include "partials/form_errors.html" %}
+  <div class="form-grid" style="grid-template-columns:minmax(0,1fr)">{% include "partials/fields.html" %}</div>
+  <div class="form-actions"><a class="btn" href="{{ back }}">Cancelar</a><button class="btn {% if danger %}btn-danger solid{% else %}btn-primary{% endif %}" type="submit">{{ button }}</button></div>
+</form>
+{% endblock %}

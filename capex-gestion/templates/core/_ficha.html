@@ -1,0 +1,43 @@
+{% load capex %}
+{% with op=f.op s=f.s cur=f.op.currency %}
+<section class="card" style="display:flex;flex-direction:column;gap:14px">
+  <header>
+    <h2><a href="{{ op.get_absolute_url }}">{{ op.code }}</a>{% if op.series %} · {{ op.series }}{% endif %}</h2>
+    <div class="actions">{% chip op.status %}<a class="btn btn-sm" href="{% url 'core:statement' op.pk %}">Estado de cuenta</a></div>
+  </header>
+  <div class="grid-2">
+    <dl class="dl">
+      <dt>Nombre</dt><dd>{{ person }}</dd>
+      <dt>DNI / RUC</dt><dd>{% if person.doc_type == "SD" %}<span style="color:var(--red)">Pendiente de registrar</span>{% else %}{{ person.get_doc_type_display }} {{ person.doc_number }}{% endif %}</dd>
+      <dt>Código de operación</dt><dd>{{ op.code }}</dd>
+      <dt>{% if is_investor %}Cliente{% else %}Bonista principal{% endif %}</dt><dd>{% if is_investor %}{{ op.client }}{% else %}{{ op.investor }}{% endif %}</dd>
+      <dt>Capital</dt><dd>{{ op.principal|money:cur }}{% if op.units > 1 %} · {{ op.units }} bonos{% endif %}</dd>
+      <dt>Fecha de inicio</dt><dd>{{ op.start_date|date:"d/m/Y" }}</dd>
+      <dt>Fecha de término</dt><dd>{{ op.maturity_date|date:"d/m/Y" }}</dd>
+      <dt>Tasa de interés</dt><dd>{{ op.get_rate_type_display }} {{ op.rate_value|num:2 }}%</dd>
+      <dt>Modalidad de pago</dt><dd>{{ op.get_periodicity_display }} · {{ op.get_amortization_display }}</dd>
+      <dt>Número de cuotas</dt><dd>{{ f.rows|length }}</dd>
+      <dt>Monto de cuota</dt><dd>{{ op.installment_amount|money:cur }}</dd>
+    </dl>
+    <dl class="dl">
+      <dt>Capital pagado</dt><dd>{{ s.capital_paid|money:cur }}</dd>
+      <dt>Interés pagado</dt><dd>{{ s.interest_paid|money:cur }}</dd>
+      <dt>Penalidades</dt><dd>{{ s.penalty_generated|money:cur }} <small class="muted">pendiente {{ s.penalty_pending|money:cur }}</small></dd>
+      <dt>Saldo pendiente</dt><dd><b>{{ s.total_due|money:cur }}</b></dd>
+      <dt>Días de atraso</dt><dd>{{ op.days_late }}</dd>
+      <dt>Garantía asociada</dt><dd>{% for m in f.mortgages %}{{ m.property.get_property_type_display }} · partida {{ m.property.registry_number }} ({{ m.get_inscription_status_display|lower }}){% if not forloop.last %}; {% endif %}{% empty %}Sin garantía registrada{% endfor %}{% if f.ltv %} · LTV {{ f.ltv.ltv|pct }}{% endif %}</dd>
+      <dt>Fideicomiso</dt><dd>{% for t in f.trusts %}<a href="{{ t.get_absolute_url }}">{{ t.code }}</a>{% if not forloop.last %}, {% endif %}{% empty %}–{% endfor %}</dd>
+      <dt>Estado</dt><dd>{{ op.get_status_display }}</dd>
+      {% if f.share is not None %}<dt>Participación</dt><dd>{{ f.share|frac_pct }} · capital {{ op.principal|mul:f.share|money:cur }} · saldo de capital {{ s.capital_pending|mul:f.share|money:cur }}</dd>{% endif %}
+    </dl>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Periodo</th><th>Vencimiento</th><th class="num">Principal</th><th class="num">Amortización</th><th class="num">Interés</th><th class="num">Cuota</th><th class="num">Penalidad</th><th class="num">Pagado</th><th class="num">Saldo</th><th class="num">Días atraso</th><th>Estado</th>{% if f.share is not None %}<th class="num">Su parte</th>{% endif %}</tr></thead>
+    <tbody>{% for r in f.rows %}
+      <tr class="{% if r.status == 'VENCIDO' %}row-red{% elif r.status == 'PAGO_PARCIAL' %}row-yellow{% endif %}"><td><b>{{ r.label|default:r.number }}</b></td><td class="nowrap">{{ r.due_date|date:"d/m/Y" }}</td><td class="num">{{ r.opening_balance|num }}</td><td class="num">{{ r.capital|num }}</td><td class="num">{{ r.interest|num }}</td>
+        <td class="num"><b>{{ r.capital|add_dec:r.interest|num }}</b></td><td class="num">{{ r.penalty_amount|num }}</td><td class="num">{{ r.paid_total|num }}</td><td class="num">{{ r.balance|num }}</td><td class="num">{{ r.days_late|default:"–" }}</td><td>{% chip r.status %}</td>
+        {% if f.share is not None %}<td class="num">{{ r.capital|add_dec:r.interest|mul:f.share|num }}</td>{% endif %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endwith %}

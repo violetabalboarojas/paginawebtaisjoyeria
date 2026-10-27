@@ -1,0 +1,26 @@
+{% extends "base.html" %}{% load capex %}{% block title %}Usuarios{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><span class="eyebrow">Administración</span><h1>Usuarios</h1></div>
+  <div class="actions"><a class="btn btn-primary" href="{% url 'accounts:user_create' %}">Nuevo usuario</a></div>
+</div>
+<div class="table-wrap"><table>
+  <thead><tr><th>Usuario</th><th>Nombre</th><th>Correo</th><th>Rol</th><th>Último acceso</th><th class="num">Sesiones</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+    <tr>
+      <td><b>{{ u.username }}</b></td><td>{{ u.get_full_name }}</td><td>{{ u.email }}</td><td>{{ u.role|default:"–" }}</td>
+      <td class="nowrap">{{ u.last_login|date:"d/m/Y H:i"|default:"Nunca" }}</td>
+      <td class="num">{{ sessions|get:u.pk|default:0 }}</td>
+      <td>{% if u.is_locked %}{% chip "VENCIDO" "Bloqueado" %}{% elif u.is_active %}{% chip "ACTIVO" %}{% else %}{% chip "INACTIVO" %}{% endif %}</td>
+      <td class="nowrap">
+        <a class="btn btn-sm" href="{% url 'accounts:user_edit' u.pk %}">Editar</a>
+        <a class="btn btn-sm" href="{% url 'accounts:user_password' u.pk %}">Contraseña</a>
+        {% if sessions|get:u.pk %}<form method="post" action="{% url 'accounts:user_kill_sessions' u.pk %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm btn-danger">Cerrar sesiones</button></form>{% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="muted">Las contraseñas se guardan con hash PBKDF2-SHA256; nadie, ni el administrador, puede verlas. Tras varios intentos fallidos seguidos la cuenta se bloquea temporalmente.</p>
+{% endblock %}
