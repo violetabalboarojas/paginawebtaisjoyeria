@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TAIS Jewelry Bar | Joyería con Significado Perú</title>
+<meta name="description" content="Joyas, charms y accesorios inspirados en la esfera mágica. Descubre tu magia interior con TAIS Jewelry Bar y pide por WhatsApp.">
+<link rel="canonical" href="https://{{DOMINIO}}/">
+
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="TAIS Jewelry Bar">
+<meta property="og:title" content="TAIS Jewelry Bar | Joyería con Significado Perú">
+<meta property="og:description" content="Joyas, charms y accesorios inspirados en la esfera mágica. Descubre tu magia interior con TAIS Jewelry Bar.">
+<meta property="og:url" content="https://{{DOMINIO}}/">
+<!-- IMG: foto OG 1200x630 con logo TAIS y esfera mágica -->
+<meta property="og:image" content="https://{{DOMINIO}}/og-image.jpg">
+<meta property="og:locale" content="es_PE">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="TAIS Jewelry Bar | Joyería con Significado Perú">
+<meta name="twitter:description" content="Joyas, charms y accesorios inspirados en la esfera mágica. Tu magia vive aquí.">
+<meta name="twitter:image" content="https://{{DOMINIO}}/og-image.jpg">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          brand: {
+            primary: '#C8B4EB',
+            soft: '#F4EEE6',
+            accent: '#D4AF37',
+            dark: '#4A3A6A'
+          }
+        },
+        fontFamily: {
+          serif: ['Cinzel', 'serif'],
+          sans: ['Montserrat', 'sans-serif']
+        }
+      }
+    }
+  };
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "TAIS Jewelry Bar",
+  "url": "https://{{DOMINIO}}/",
+  "logo": "https://{{DOMINIO}}/logo.png",
+  "slogan": "Tu magia vive aquí.",
+  "sameAs": [
+    "{{INSTAGRAM_URL}}",
+    "{{TIKTOK_URL}}",
+    "{{FACEBOOK_URL}}"
+  ],
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "{{TELEFONO}}",
+    "email": "{{EMAIL}}",
+    "contactType": "customer service",
+    "areaServed": "PE",
+    "availableLanguage": "Spanish"
+  }
+}
+</script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "¿Qué representa la esfera mágica de TAIS Jewelry Bar?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "La esfera mágica representa el universo interior de cada mujer: sus sueños, su intuición y la magia de atraer aquello que está destinada a vivir. Por eso acompaña cada joya, charm y accesorio de TAIS Jewelry Bar, como recordatorio diario de que la magia empieza dentro de ti."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Cómo hago un pedido en TAIS Jewelry Bar?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Haces tu pedido directamente por WhatsApp, escribiendo al número de contacto y mencionando el producto que deseas. Nuestro equipo te confirma disponibilidad, precio final y forma de pago antes de coordinar el envío."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Cuáles son los métodos de pago disponibles?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Los métodos de pago disponibles son {{METODOS_PAGO}}, que confirmamos directamente por WhatsApp al momento de tu pedido. Esta información se actualiza apenas la marca la confirme."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Hacen envíos a todo el Perú?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sí, hacemos envíos a Lima y a provincias a nivel nacional. El plazo de entrega en Lima es de {{ENVIO_LIMA_PLAZO}} con un costo de {{ENVIO_LIMA_COSTO}}, y a provincias el plazo es de {{ENVIO_PROVINCIAS_PLAZO}} con un costo de {{ENVIO_PROVINCIAS_COSTO}}."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "¿De qué material están hechas las joyas TAIS?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Las joyas TAIS están hechas de {{MATERIALES}}, pensadas para acompañarte todos los días sin perder su brillo. Cada pedido incluye {{PACKAGING_DESC}} de regalo, lista para ti o para regalar."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "¿Puedo cambiar o devolver mi pedido?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sí, puedes solicitar el cambio o la devolución de tu pedido escribiendo por WhatsApp dentro del plazo indicado en nuestra política de envíos. Revisa las condiciones completas en la página de políticas antes de solicitar el cambio."
+      }
+    }
+  ]
+}
+</script>
+
+<!-- GTM / PIXEL DEL CLIENTE AQUÍ -->
+
+<style>
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Montserrat', sans-serif; }
+  h1, h2, h3, .font-serif { font-family: 'Cinzel', serif; }
+
+  .marquee-wrap { overflow: hidden; position: relative; }
+  .marquee-track {
+    display: flex;
+    width: max-content;
+    animation: marquee 32s linear infinite;
+  }
+  .marquee-wrap:hover .marquee-track { animation-play-state: paused; }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  .hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .bg-esfera {
+    background: radial-gradient(circle at 35% 30%, #EFE6FB 0%, #C8B4EB 55%, #4A3A6A 100%);
+  }
+</style>
+</head>
+<body class="bg-white text-brand-dark antialiased">
+
+<!-- Announcement bar -->
+<div class="bg-brand-dark text-brand-soft text-center text-xs sm:text-sm py-2 px-4 tracking-wide">
+  Envíos a todo el Perú · Pedidos por WhatsApp · {{HORARIO}}
+</div>
+
+<!-- Nav -->
+<header class="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-brand-primary/30">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16 sm:h-20">
+      <a href="#inicio" class="font-serif text-lg sm:text-2xl tracking-widest text-brand-dark">TAIS <span class="text-brand-accent">Jewelry Bar</span></a>
+
+      <nav class="hidden md:flex items-center gap-6 text-sm font-medium tracking-wide">
+        <a href="#colecciones" class="hover:text-brand-accent transition-colors">Colecciones</a>
+        <a href="#productos" class="hover:text-brand-accent transition-colors">Productos</a>
+        <a href="#simbolo" class="hover:text-brand-accent transition-colors">Nuestro símbolo</a>
+        <a href="#faq" class="hover:text-brand-accent transition-colors">Preguntas frecuentes</a>
+      </nav>
+
+      <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20conocer%20mas%20sobre%20sus%20joyas&utm_source=tais&utm_medium=cta&utm_campaign=nav-whatsapp"
+         target="_blank" rel="noopener noreferrer"
+         class="hidden sm:inline-block bg-brand-accent text-white text-xs sm:text-sm font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full hover:opacity-90 transition-opacity">
+        Pedir por WhatsApp
+      </a>
+
+      <button id="menu-btn" aria-label="Abrir menú" aria-expanded="false" aria-controls="mobile-menu" class="md:hidden text-brand-dark">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="mobile-menu" class="hidden md:hidden border-t border-brand-primary/30 bg-white px-4 py-4 space-y-3 text-sm font-medium">
+    <a href="#colecciones" class="block py-1">Colecciones</a>
+    <a href="#productos" class="block py-1">Productos</a>
+    <a href="#simbolo" class="block py-1">Nuestro símbolo</a>
+    <a href="#faq" class="block py-1">Preguntas frecuentes</a>
+    <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20conocer%20mas%20sobre%20sus%20joyas&utm_source=tais&utm_medium=cta&utm_campaign=nav-whatsapp-mobile"
+       target="_blank" rel="noopener noreferrer"
+       class="block text-center bg-brand-accent text-white font-semibold uppercase tracking-widest px-5 py-2.5 rounded-full">
+      Pedir por WhatsApp
+    </a>
+  </div>
+</header>
+
+<!-- Hero -->
+<section id="inicio" class="bg-brand-soft">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 grid md:grid-cols-2 gap-10 items-center">
+    <div>
+      <p class="uppercase tracking-[0.3em] text-xs sm:text-sm text-brand-accent font-semibold mb-4">Tu magia vive aquí</p>
+      <h1 class="text-3xl sm:text-5xl leading-tight text-brand-dark mb-6">
+        Joyería con significado en Perú, hecha para tu universo interior
+      </h1>
+      <p class="text-base sm:text-lg text-brand-dark/80 mb-8">
+        Joyas, charms, bolsos, llaveros y peluches con el símbolo de la esfera mágica, para llevar contigo tus sueños, tu intuición y tu energía.
+      </p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20hacer%20un%20pedido&utm_source=tais&utm_medium=cta&utm_campaign=hero-whatsapp"
+           target="_blank" rel="noopener noreferrer"
+           class="text-center bg-brand-accent text-white font-semibold uppercase tracking-widest text-sm px-8 py-3.5 rounded-full hover:opacity-90 transition-opacity">
+          Pedir por WhatsApp
+        </a>
+        <a href="#productos"
+           class="text-center border border-brand-dark text-brand-dark font-semibold uppercase tracking-widest text-sm px-8 py-3.5 rounded-full hover:bg-brand-dark hover:text-white transition-colors">
+          Ver productos
+        </a>
+      </div>
+    </div>
+    <div class="aspect-square rounded-3xl bg-esfera flex items-center justify-center shadow-xl">
+      <!-- IMG: foto hero de producto TAIS con la esfera mágica en primer plano -->
+      <span class="text-7xl sm:text-8xl" aria-hidden="true">🔮</span>
+    </div>
+  </div>
+</section>
+
+<!-- Colecciones -->
+<section id="colecciones" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+  <div class="text-center mb-12">
+    <h2 class="text-2xl sm:text-3xl text-brand-dark mb-3">Nuestras colecciones</h2>
+    <p class="text-brand-dark/70 max-w-2xl mx-auto">Cada línea TAIS lleva el símbolo de la esfera mágica, para que elijas cómo llevar tu magia contigo.</p>
+  </div>
+
+  <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-6">
+    <a href="#productos" class="group flex flex-col items-center text-center gap-3 p-4 rounded-2xl bg-brand-soft hover:bg-brand-primary/30 transition-colors">
+      <!-- IMG: icono/foto colección Joyas TAIS -->
+      <span class="text-3xl sm:text-4xl" aria-hidden="true">💍</span>
+      <span class="text-xs sm:text-sm font-semibold uppercase tracking-wide">Joyas TAIS</span>
+    </a>
+    <a href="#productos" class="group flex flex-col items-center text-center gap-3 p-4 rounded-2xl bg-brand-soft hover:bg-brand-primary/30 transition-colors">
+      <!-- IMG: icono/foto colección Charm Esfera -->
+      <span class="text-3xl sm:text-4xl" aria-hidden="true">🔮</span>
+      <span class="text-xs sm:text-sm font-semibold uppercase tracking-wide">Charm Esfera</span>
+    </a>
+    <a href="#productos" class="group flex flex-col items-center text-center gap-3 p-4 rounded-2xl bg-brand-soft hover:bg-brand-primary/30 transition-colors">
+      <!-- IMG: icono/foto colección Bolso TAIS -->
+      <span class="text-3xl sm:text-4xl" aria-hidden="true">👜</span>
+      <span class="text-xs sm:text-sm font-semibold uppercase tracking-wide">Bolso TAIS</span>
+    </a>
+    <a href="#productos" class="group flex flex-col items-center text-center gap-3 p-4 rounded-2xl bg-brand-soft hover:bg-brand-primary/30 transition-colors">
+      <!-- IMG: icono/foto colección Llavero TAIS -->
+      <span class="text-3xl sm:text-4xl" aria-hidden="true">🔑</span>
+      <span class="text-xs sm:text-sm font-semibold uppercase tracking-wide">Llavero TAIS</span>
+    </a>
+    <a href="#productos" class="group flex flex-col items-center text-center gap-3 p-4 rounded-2xl bg-brand-soft hover:bg-brand-primary/30 transition-colors">
+      <!-- IMG: icono/foto colección Peluche Esfera Mágica -->
+      <span class="text-3xl sm:text-4xl" aria-hidden="true">🧸</span>
+      <span class="text-xs sm:text-sm font-semibold uppercase tracking-wide">Peluche Esfera</span>
+    </a>
+    <a href="#productos" class="group flex flex-col items-center text-center gap-3 p-4 rounded-2xl bg-brand-soft hover:bg-brand-primary/30 transition-colors">
+      <!-- IMG: icono/foto Packaging de regalo -->
+      <span class="text-3xl sm:text-4xl" aria-hidden="true">🎁</span>
+      <span class="text-xs sm:text-sm font-semibold uppercase tracking-wide">Packaging de Regalo</span>
+    </a>
+  </div>
+</section>
+
+<!-- Productos -->
+<section id="productos" class="bg-brand-soft py-16 sm:py-20">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-12">
+      <h2 class="text-2xl sm:text-3xl text-brand-dark mb-3">Joyas y accesorios con significado</h2>
+      <p class="text-brand-dark/70 max-w-2xl mx-auto">Pide directamente por WhatsApp, mencionando el nombre del producto que deseas.</p>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+
+      <!-- Producto 1 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Anillo Esfera Mágica -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">💍</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Anillo Esfera Mágica</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Anillo ajustable con la esfera mágica en el centro, símbolo de tu intuición y tus sueños.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_1}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20el%20Anillo%20Esfera%20Magica&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-anillo-esfera-magica"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Producto 2 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Collar Esfera Mágica -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">📿</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Collar Esfera Mágica</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Collar delicado con dije de esfera, para llevar tu magia interior cerca del corazón.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_2}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20el%20Collar%20Esfera%20Magica&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-collar-esfera-magica"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Producto 3 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Aretes Esfera Mágica -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">✨</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Aretes Esfera Mágica</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Aretes minimalistas con el símbolo de la esfera, para brillar con intención todos los días.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_3}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20los%20Aretes%20Esfera%20Magica&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-aretes-esfera-magica"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Producto 4 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Charm Esfera -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">🔮</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Charm Esfera</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Charm intercambiable con la esfera mágica, para personalizar pulseras, collares y bolsos.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_4}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20el%20Charm%20Esfera&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-charm-esfera"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Producto 5 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Bolso TAIS -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">👜</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Bolso TAIS</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Bolso con el sello TAIS, pensado para acompañar tu día a día con estilo y magia.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_5}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20el%20Bolso%20TAIS&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-bolso-tais"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Producto 6 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Llavero TAIS -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">🔑</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Llavero TAIS</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Llavero con la esfera mágica, un recordatorio de tu poder interior en cada salida.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_6}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20el%20Llavero%20TAIS&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-llavero-tais"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Producto 7 -->
+      <div class="bg-white rounded-2xl overflow-hidden shadow-sm flex flex-col">
+        <!-- IMG: foto cuadrada Peluche Esfera Mágica -->
+        <div class="aspect-square bg-esfera flex items-center justify-center">
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">🧸</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base text-brand-dark mb-1">Peluche Esfera Mágica</h3>
+          <p class="text-xs sm:text-sm text-brand-dark/70 mb-3 flex-1">Peluche coleccionable con el símbolo TAIS, ideal para regalar o coleccionar.</p>
+          <p class="text-brand-accent font-semibold mb-3">{{PRECIO_7}}</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20pedir%20el%20Peluche%20Esfera%20Magica&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-peluche-esfera-magica"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide text-brand-dark hover:text-brand-accent transition-colors">
+            Pedir →
+          </a>
+        </div>
+      </div>
+
+      <!-- Packaging de regalo (incluido, no es item con precio propio) -->
+      <div class="rounded-2xl overflow-hidden shadow-sm flex flex-col bg-gradient-to-br from-brand-primary/40 to-brand-dark text-white">
+        <div class="aspect-square flex items-center justify-center">
+          <!-- IMG: foto Packaging de regalo TAIS -->
+          <span class="text-4xl sm:text-5xl" aria-hidden="true">🎁</span>
+        </div>
+        <div class="p-4 flex flex-col flex-1">
+          <h3 class="font-serif text-sm sm:text-base mb-1">Packaging de Regalo</h3>
+          <p class="text-xs sm:text-sm text-white/80 mb-3 flex-1">Cada pedido incluye {{PACKAGING_DESC}} de regalo, sin costo adicional.</p>
+          <a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20saber%20mas%20sobre%20el%20packaging%20de%20regalo&utm_source=tais&utm_medium=cta_mid&utm_campaign=producto-packaging-regalo"
+             target="_blank" rel="noopener noreferrer"
+             class="text-xs sm:text-sm font-semibold uppercase tracking-wide hover:text-brand-accent transition-colors">
+            Consultar →
+          </a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Símbolo / historia -->
+<section id="simbolo" class="bg-gradient-to-br from-brand-primary/30 via-white to-brand-soft py-16 sm:py-24">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <span class="text-5xl sm:text-6xl block mb-6" aria-hidden="true">🔮</span>
+    <h2 class="text-2xl sm:text-3xl text-brand-dark mb-4">¿Qué representa la esfera mágica?</h2>
+    <p class="text-brand-dark/80 text-base sm:text-lg mb-6">
+      La esfera mágica representa el universo interior de cada mujer: sus sueños, su intuición y la magia de atraer aquello que está destinada a vivir. Es el símbolo que TAIS Jewelry Bar lleva en cada joya, charm y accesorio, como recordatorio diario de que la magia empieza dentro de ti.
+    </p>
+    <p class="text-brand-dark/80 text-base sm:text-lg mb-10">{{HISTORIA_MARCA}}</p>
+
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+      <div class="bg-white/70 rounded-2xl p-4 sm:p-6">
+        <p class="font-serif text-brand-dark text-sm sm:text-base">Intuición</p>
+      </div>
+      <div class="bg-white/70 rounded-2xl p-4 sm:p-6">
+        <p class="font-serif text-brand-dark text-sm sm:text-base">Magia</p>
+      </div>
+      <div class="bg-white/70 rounded-2xl p-4 sm:p-6">
+        <p class="font-serif text-brand-dark text-sm sm:text-base">Sueños</p>
+      </div>
+      <div class="bg-white/70 rounded-2xl p-4 sm:p-6">
+        <p class="font-serif text-brand-dark text-sm sm:text-base">Energía</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Testimonios -->
+<section class="py-16 sm:py-20 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-10">
+    <h2 class="text-2xl sm:text-3xl text-brand-dark mb-3">Mujeres que ya viven su magia</h2>
+    <p class="text-brand-dark/70">Testimonios reales de clientas TAIS.</p>
+  </div>
+
+  <div class="marquee-wrap">
+    <div class="marquee-track gap-6 px-4">
+      <!-- Set original -->
+      <div class="w-72 sm:w-80 shrink-0 bg-brand-soft rounded-2xl p-6">
+        <p class="text-sm sm:text-base text-brand-dark/80 mb-4">"{{T1_TEXTO}}"</p>
+        <p class="text-xs sm:text-sm font-semibold text-brand-dark">{{T1_NOMBRE}}</p>
+      </div>
+      <div class="w-72 sm:w-80 shrink-0 bg-brand-soft rounded-2xl p-6">
+        <p class="text-sm sm:text-base text-brand-dark/80 mb-4">"{{T2_TEXTO}}"</p>
+        <p class="text-xs sm:text-sm font-semibold text-brand-dark">{{T2_NOMBRE}}</p>
+      </div>
+      <div class="w-72 sm:w-80 shrink-0 bg-brand-soft rounded-2xl p-6">
+        <p class="text-sm sm:text-base text-brand-dark/80 mb-4">"{{T3_TEXTO}}"</p>
+        <p class="text-xs sm:text-sm font-semibold text-brand-dark">{{T3_NOMBRE}}</p>
+      </div>
+      <!-- Set duplicado para loop infinito -->
+      <div class="w-72 sm:w-80 shrink-0 bg-brand-soft rounded-2xl p-6" aria-hidden="true">
+        <p class="text-sm sm:text-base text-brand-dark/80 mb-4">"{{T1_TEXTO}}"</p>
+        <p class="text-xs sm:text-sm font-semibold text-brand-dark">{{T1_NOMBRE}}</p>
+      </div>
+      <div class="w-72 sm:w-80 shrink-0 bg-brand-soft rounded-2xl p-6" aria-hidden="true">
+        <p class="text-sm sm:text-base text-brand-dark/80 mb-4">"{{T2_TEXTO}}"</p>
+        <p class="text-xs sm:text-sm font-semibold text-brand-dark">{{T2_NOMBRE}}</p>
+      </div>
+      <div class="w-72 sm:w-80 shrink-0 bg-brand-soft rounded-2xl p-6" aria-hidden="true">
+        <p class="text-sm sm:text-base text-brand-dark/80 mb-4">"{{T3_TEXTO}}"</p>
+        <p class="text-xs sm:text-sm font-semibold text-brand-dark">{{T3_NOMBRE}}</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" class="bg-brand-soft py-16 sm:py-20">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+    <p class="text-center uppercase tracking-[0.3em] text-xs sm:text-sm text-brand-accent font-semibold mb-3">FAQ</p>
+    <h2 class="sr-only">Preguntas frecuentes sobre TAIS Jewelry Bar</h2>
+
+    <div class="space-y-8">
+      <div>
+        <h2 class="text-lg sm:text-xl text-brand-dark mb-2">¿Qué representa la esfera mágica de TAIS Jewelry Bar?</h2>
+        <p class="text-sm sm:text-base text-brand-dark/80">La esfera mágica representa el universo interior de cada mujer: sus sueños, su intuición y la magia de atraer aquello que está destinada a vivir. Por eso acompaña cada joya, charm y accesorio de TAIS Jewelry Bar, como recordatorio diario de que la magia empieza dentro de ti.</p>
+      </div>
+      <div>
+        <h2 class="text-lg sm:text-xl text-brand-dark mb-2">¿Cómo hago un pedido en TAIS Jewelry Bar?</h2>
+        <p class="text-sm sm:text-base text-brand-dark/80">Haces tu pedido directamente por WhatsApp, escribiendo al número de contacto y mencionando el producto que deseas. Nuestro equipo te confirma disponibilidad, precio final y forma de pago antes de coordinar el envío.</p>
+      </div>
+      <div>
+        <h2 class="text-lg sm:text-xl text-brand-dark mb-2">¿Cuáles son los métodos de pago disponibles?</h2>
+        <p class="text-sm sm:text-base text-brand-dark/80">Los métodos de pago disponibles son {{METODOS_PAGO}}, que confirmamos directamente por WhatsApp al momento de tu pedido. Esta información se actualiza apenas la marca la confirme.</p>
+      </div>
+      <div>
+        <h2 class="text-lg sm:text-xl text-brand-dark mb-2">¿Hacen envíos a todo el Perú?</h2>
+        <p class="text-sm sm:text-base text-brand-dark/80">Sí, hacemos envíos a Lima y a provincias a nivel nacional. El plazo de entrega en Lima es de {{ENVIO_LIMA_PLAZO}} con un costo de {{ENVIO_LIMA_COSTO}}, y a provincias el plazo es de {{ENVIO_PROVINCIAS_PLAZO}} con un costo de {{ENVIO_PROVINCIAS_COSTO}}.</p>
+      </div>
+      <div>
+        <h2 class="text-lg sm:text-xl text-brand-dark mb-2">¿De qué material están hechas las joyas TAIS?</h2>
+        <p class="text-sm sm:text-base text-brand-dark/80">Las joyas TAIS están hechas de {{MATERIALES}}, pensadas para acompañarte todos los días sin perder su brillo. Cada pedido incluye {{PACKAGING_DESC}} de regalo, lista para ti o para regalar.</p>
+      </div>
+      <div>
+        <h2 class="text-lg sm:text-xl text-brand-dark mb-2">¿Puedo cambiar o devolver mi pedido?</h2>
+        <p class="text-sm sm:text-base text-brand-dark/80">Sí, puedes solicitar el cambio o la devolución de tu pedido escribiendo por WhatsApp dentro del plazo indicado en nuestra política de envíos. Revisa las condiciones completas en la página de políticas antes de solicitar el cambio.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Bienvenida -->
+<section class="py-16 sm:py-20 bg-white">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <h2 class="text-2xl sm:text-3xl text-brand-dark mb-4">Bienvenida a la comunidad TAIS</h2>
+    <p class="text-brand-dark/80 text-base sm:text-lg">
+      Aquí cada pieza tiene un propósito: recordarte que tu magia interior es real y que mereces llevarla contigo todos los días. Gracias por dejar que la esfera mágica te acompañe.
+    </p>
+  </div>
+</section>
+
+<!-- Newsletter -->
+<section class="bg-brand-dark text-brand-soft py-16 sm:py-20">
+  <div class="max-w-xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+    <h2 class="text-2xl sm:text-3xl mb-3">No te pierdas tu dosis de magia</h2>
+    <p class="text-brand-soft/80 mb-8 text-sm sm:text-base">Suscríbete y recibe novedades, lanzamientos y promociones de TAIS Jewelry Bar.</p>
+
+    <form action="{{FORM_ENDPOINT}}" method="POST" class="flex flex-col sm:flex-row gap-3">
+      <label for="newsletter-email" class="sr-only">Correo electrónico</label>
+      <input id="newsletter-email" name="email" type="email" required placeholder="Tu correo electrónico"
+             class="flex-1 rounded-full px-5 py-3 text-brand-dark text-sm focus:outline-none focus:ring-2 focus:ring-brand-accent">
+
+      <!-- Honeypot: campo oculto anti-spam, el backend debe descartar envíos donde venga lleno -->
+      <input type="text" name="website" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+      <button type="submit"
+              class="bg-brand-accent text-white font-semibold uppercase tracking-widest text-sm px-8 py-3 rounded-full hover:opacity-90 transition-opacity">
+        Suscribirme
+      </button>
+    </form>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="bg-brand-dark text-brand-soft/90 pt-12 pb-8">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8 text-sm">
+    <div>
+      <p class="font-serif text-lg text-white mb-3">TAIS Jewelry Bar</p>
+      <p class="text-brand-soft/70">Tu magia vive aquí.</p>
+    </div>
+    <div>
+      <p class="font-semibold text-white mb-3 uppercase tracking-wide text-xs">Contacto</p>
+      <ul class="space-y-2 text-brand-soft/80">
+        <li>{{DIRECCION}}</li>
+        <li>{{HORARIO}}</li>
+        <li>{{TELEFONO}}</li>
+        <li>{{EMAIL}}</li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-semibold text-white mb-3 uppercase tracking-wide text-xs">Políticas</p>
+      <ul class="space-y-2 text-brand-soft/80">
+        <li><a href="{{URL_ENVIOS}}?utm_source=tais&utm_medium=footer&utm_campaign=politica-envios" class="hover:text-brand-accent transition-colors">Política de envíos</a></li>
+        <li><a href="{{URL_PRIVACIDAD}}?utm_source=tais&utm_medium=footer&utm_campaign=politica-privacidad" class="hover:text-brand-accent transition-colors">Política de privacidad</a></li>
+      </ul>
+    </div>
+    <div>
+      <p class="font-semibold text-white mb-3 uppercase tracking-wide text-xs">Síguenos</p>
+      <ul class="space-y-2 text-brand-soft/80">
+        <li><a href="{{INSTAGRAM_URL}}?utm_source=tais&utm_medium=footer&utm_campaign=instagram" target="_blank" rel="noopener noreferrer" class="hover:text-brand-accent transition-colors">Instagram</a></li>
+        <li><a href="{{TIKTOK_URL}}?utm_source=tais&utm_medium=footer&utm_campaign=tiktok" target="_blank" rel="noopener noreferrer" class="hover:text-brand-accent transition-colors">TikTok</a></li>
+        <li><a href="{{FACEBOOK_URL}}?utm_source=tais&utm_medium=footer&utm_campaign=facebook" target="_blank" rel="noopener noreferrer" class="hover:text-brand-accent transition-colors">Facebook</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-brand-soft/20 pt-6 text-xs text-brand-soft/60 text-center">
+    © 2026 TAIS Jewelry Bar. Todos los derechos reservados.
+  </div>
+</footer>
+
+<!-- Botón flotante de WhatsApp -->
+<a href="https://wa.me/{{WHATSAPP_NUMERO}}?text=Hola%20TAIS%2C%20quiero%20hacer%20una%20consulta&utm_source=tais&utm_medium=cta&utm_campaign=boton-flotante"
+   target="_blank" rel="noopener noreferrer"
+   aria-label="Escribir por WhatsApp"
+   class="fixed bottom-5 right-5 z-50 bg-[#25D366] text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:opacity-90 transition-opacity">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" class="w-7 h-7" fill="currentColor" aria-hidden="true">
+    <path d="M16.001 3C9.373 3 4 8.373 4 15c0 2.386.696 4.607 1.897 6.48L4 29l7.72-1.86A11.94 11.94 0 0 0 16.001 27C22.63 27 28 21.627 28 15S22.63 3 16.001 3zm0 21.6c-1.94 0-3.75-.56-5.28-1.53l-.38-.23-3.64.88.92-3.63-.25-.38A9.55 9.55 0 0 1 6.4 15c0-5.3 4.3-9.6 9.6-9.6 5.3 0 9.6 4.3 9.6 9.6 0 5.3-4.3 9.6-9.6 9.6zm5.27-7.19c-.29-.14-1.7-.84-1.96-.93-.26-.1-.45-.14-.64.14-.19.29-.74.93-.9 1.12-.17.19-.33.21-.62.07-.29-.14-1.22-.45-2.32-1.43-.86-.77-1.44-1.71-1.61-2-.17-.29-.02-.44.13-.58.13-.13.29-.33.43-.5.14-.17.19-.29.29-.48.1-.19.05-.36-.02-.5-.07-.14-.64-1.55-.88-2.12-.23-.56-.47-.48-.64-.49-.17-.01-.36-.01-.55-.01-.19 0-.5.07-.76.36-.26.29-1 1-1 2.43 0 1.43 1.03 2.81 1.17 3 .14.19 2.03 3.1 4.93 4.35.69.3 1.23.48 1.65.61.69.22 1.32.19 1.82.11.55-.08 1.7-.7 1.94-1.37.24-.67.24-1.24.17-1.37-.07-.12-.26-.19-.55-.33z"/>
+  </svg>
+</a>
+
+<script>
+  (function () {
+    var btn = document.getElementById('menu-btn');
+    var menu = document.getElementById('mobile-menu');
+    btn.addEventListener('click', function () {
+      var isOpen = !menu.classList.contains('hidden');
+      menu.classList.toggle('hidden');
+      btn.setAttribute('aria-expanded', String(!isOpen));
+    });
+  })();
+</script>
+
+</body>
+</html>
